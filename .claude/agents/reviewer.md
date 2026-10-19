@@ -69,16 +69,19 @@ Method:
 
    **If you cannot get this diff, or if it is empty**, return `INCOMPLETE` citing what you tried,
    and stop there. Do not reconstruct it by reading files: you would not see what was deleted.
-2. **Run the repository's read-only checks** on the result, the commands of `AGENTS.md`:
+2. **Run the repository's read-only checks** on the result. `just check` (see `AGENTS.md`) is
+   the single command that runs them all; the main session already ran it, so you run its
+   recipes except `test`:
    ```bash
-   cargo fmt --all --check
-   cargo clippy --workspace --all-targets -- -D warnings
-   RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
-   cargo deny check                       # if Cargo.toml, Cargo.lock or deny.toml changed
+   just fmt-check                         # cargo fmt --all --check, taplo fmt --check
+   just lint                              # cargo clippy --workspace --all-targets -- -D warnings
+   just doc                               # RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+   just deny                              # if Cargo.toml, Cargo.lock or deny.toml changed
    cog check <merge-base>..HEAD           # the commits already on the branch
    ```
+   The underlying `cargo` commands are accepted too, when you need one alone.
    Quote the codes as they are (`E0308`, `clippy::unwrap_used`), never a paraphrase.
-   - **No option that writes.** No `cargo fmt` without `--check`, no `--fix`, no `cargo update`:
+   - **No option that writes.** No `cargo fmt` without `--check`, no `just fmt`, no `--fix`, no `cargo update`:
      the guard refuses them, and your prohibition on writing admits no exception.
    - **Do not re-run the full test suite**: the main session ran it before calling you. Running
      *one* targeted test (`cargo test -p <crate> <name>`) remains legitimate when you suspect a

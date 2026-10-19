@@ -30,18 +30,18 @@ between two issues; the user's review of the plan, unless `--review`.
 **Never lifted, under any pretext, including when the goal is far off and stopping costs time:**
 
 1. **The exit gate in full**, before each end-of-issue commit: the repository's checks run by you
-   and read (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-   `cargo test --workspace`, `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`, and
-   `cargo deny check` when dependencies moved), tests and specs untouched since the red commit
+   and read (`just check`, the single command that runs everything CI runs), tests and specs
+   untouched since the red commit
    (rule 4), verdict from the `reviewer`, and the `auditor`, `proof-engineer`, `perf-engineer` or
    `devsecops` in parallel when the change calls for them. `INCOMPLETE` is not a green light.
 2. **Every commit goes through the `committer`.** You never commit yourself.
-3. **Writes to the outside world remain subject to the harness**: every `glab issue create` or
-   `update` shows its permission request to the user. You do not bypass them, you do not add
+3. **Writes to the outside world remain subject to the harness**: every `gh issue create`,
+   `gh issue edit`, `gh pr create` or `gh pr merge` shows its permission request to the user. You do not bypass them, you do not add
    them to an `allow` list, and a refusal stops the current issue.
 4. **Force pushes remain denied** by `.claude/settings.json`, and you do not bypass that. An
    ordinary push is shown to the user before it goes out; once pushed, the issue moves on to
-   `mr-writer` then `mr-reviewer`, and the merge is submitted to the user like everything else.
+   `pr-writer` then `pr-reviewer`, and the merge is submitted to the user like everything else:
+   it happens only after their confirmation, never with `--admin` or `--auto`.
 5. **Nothing destructive without the user**: `git reset --hard`, rewriting history, deleting an
    issue, wiping a shared `target/` another worktree is building into.
 6. **Root stays with the user**: a measurement that needs `sudo` (kperf cycle counters) is handed
@@ -51,9 +51,9 @@ between two issues; the user's review of the plan, unless `--review`.
 
 ### 1. Establish the scope and the order
 
-Read the issues with `glab issue list --all` and, for those the goal targets, their content.
+Read the issues with `gh issue list --state all` and, for those the goal targets, their content.
 Translate the goal into a list of keys. **Order them by their dependencies**: a description that
-starts with "Blocked by #n" goes after issue n, unless n is closed or already handled in this run.
+starts with "Blocked by #n", or whose `gh issue view <n> --json blockedBy` lists n, goes after issue n, unless n is closed or already handled in this run.
 In case of a cycle or ambiguity, stop and ask.
 
 If no issue covers the goal, have the `ticket-writer` create one (the user will approve the
@@ -65,7 +65,7 @@ next session will read if this one closes.
 ### 2. For each issue, the chain
 
 `ticket-reader` → `ticket-brancher` → (`language-designer`) → `planner` → loop per step →
-exit gate → `committer` → push → `mr-writer` → `mr-reviewer` → merge.
+exit gate → `committer` → push → `pr-writer` → `pr-reviewer` → merge.
 
 You pass the baton yourself: one role's report goes into the next one's prompt. The plan
 circulates **by its path** (`.claude/plans/<KEY>.md`), never copied out.
@@ -88,7 +88,7 @@ and have the `planner` rework it before going further.
 tester (one pass per requested test type)
   → wiring lines the tester reports (mod tests;, dev-dependency), added by you
   → commit of the red tests by the committer, a single hash, announced paths only
-  → coder (or release-engineer / perf-engineer if the deliverable is pipeline config / a benchmark)
+  → coder (or release-engineer / perf-engineer if the deliverable is CI or build config / a benchmark)
   → integrity check: tests, wiring lines and spec clauses unchanged since <hash> (rule 4)
   → next step, without handing control back
 ```
@@ -96,7 +96,7 @@ tester (one pass per requested test type)
 A step the plan marks **"Competing passes: yes"** follows the competing passes protocol of
 `.claude/orchestration.md`. Automation does not remove it; it simply chains on after it.
 
-A step the plan announces **without a tester** (pipeline, benchmark, documentation) is launched as
+A step the plan announces **without a tester** (CI, benchmark, documentation) is launched as
 is, and you say so in your trace so it does not look like an oversight.
 
 **Update `.claude/state/<KEY>.md`** after each test commit and each coder pass: the table of
@@ -104,9 +104,9 @@ steps with their state and the hash of the test commit on the relevant row.
 
 ### 4. End of issue
 
-Full exit gate, `committer`, push, `mr-writer`, `mr-reviewer`, merge, then next issue **without
-stopping**. Record the finished key in `.claude/state/goal.md`. A merge the user declines, or an
-`mr-reviewer` verdict other than `MERGEABLE`, is a stop like those below.
+Full exit gate, `committer`, push, `pr-writer`, `pr-reviewer`, merge, then next issue **without
+stopping**. Record the finished key in `.claude/state/goal.md`. A merge the user declines, or a
+`pr-reviewer` verdict other than `MERGEABLE`, is a stop like those below.
 
 ## When you stop anyway
 
@@ -130,7 +130,7 @@ what comes next:
 Along the way, one line per step completed: issue, step, state, hash. Write that line in the same
 message as the call that launches the next role: on its own, it ends your turn.
 
-At the end, or on stopping: the finished issues with their commits and merge requests, those
+At the end, or on stopping: the finished issues with their commits and pull requests, those
 remaining, what was explicitly set aside, the open findings, and **what is waiting on the user**.
 
 ## A guarantee you give

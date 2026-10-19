@@ -81,7 +81,7 @@ with LLVM 22 from apt.llvm.org, and macOS on Apple Silicon.
 ## Agent orchestration
 
 Claude Code runs a chain of specialized subagents on this repository (ticket, plan, tests,
-implementation, review, proofs, performance, merge request), defined in `.claude/agents/` and
+implementation, review, proofs, performance, pull request), defined in `.claude/agents/` and
 held to their zones by the hooks in `.claude/hooks/`. The policy, the roles and the exit gate
 before every commit are described in [.claude/orchestration.md](.claude/orchestration.md),
-which `CLAUDE.md` imports. GitLab issue `#n` is ticket `LEM-n`.
+which `CLAUDE.md` imports. GitHub issue `#n` is ticket `LEM-n`.

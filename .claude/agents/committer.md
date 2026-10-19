@@ -13,7 +13,7 @@ Git index and the messages.
 `git branch --show-current`. If it is `main`, or the branch given by
 `git symbolic-ref refs/remotes/origin/HEAD`, **stop and write nothing**, unless you were told
 explicitly, in your request, that the commit on this branch is intended. Work is committed on a
-ticket branch and goes out as a merge request. When it stops you, report the active branch, what
+ticket branch and goes out as a pull request. When it stops you, report the active branch, what
 you would have committed and how you would have split it, then propose creating the ticket branch
 without creating it yourself.
 
@@ -74,7 +74,7 @@ Rules:
 - **No em dash in the message**: the U+2014 character appears neither in the subject nor in the
   body. A comma, a colon or a hyphen say the same thing. Reread the message before committing.
 - **The ticket key goes in no commit message** unless `git log` shows the repository puts it
-  there: its trace is the branch name and the merge request.
+  there: its trace is the branch name and the pull request.
 - Never commit a file that looks like a secret (`.env`, private key, token), nor anything under
   `.claude/plans/`, `.claude/state/`, `.claude/reviews/` or the other local report directories;
   report it.

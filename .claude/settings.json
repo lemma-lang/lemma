@@ -28,9 +28,14 @@
       "Edit(.claude/proofs/**)",
       "Write(.claude/perf/**)",
       "Edit(.claude/perf/**)",
-      "Bash(glab issue view:*)",
-      "Bash(glab issue list:*)",
-      "Bash(glab ci lint:*)"
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(actionlint:*)"
     ],
     "deny": [
       "Read(.env)",

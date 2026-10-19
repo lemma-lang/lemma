@@ -77,7 +77,7 @@ Date · branch · command that reproduces
 | The production code does not do what the test asks | `coder` |
 | A spec that is wrong, vacuous, or a proof obligation encoded badly | `proof-engineer` |
 | The approach itself is at fault, or the breakdown | `planner` |
-| A pipeline or build policy file: `.gitlab-ci.yml`, `.cargo/config.toml`, `deny.toml`, `clippy.toml` | `release-engineer` |
+| A CI workflow or build policy file: `.github/workflows/ci.yml`, `justfile`, `.cargo/config.toml`, `deny.toml`, `clippy.toml` | `release-engineer` |
 | An action on the environment: a Homebrew package, a toolchain, a stale `target/` | **the main session or the human** |
 | Nothing to fix: transient external cause, not reproducible | **nobody**, and say so |
 

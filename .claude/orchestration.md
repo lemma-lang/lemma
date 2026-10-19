@@ -5,10 +5,10 @@ This repository has eighteen specialized subagents, in `.claude/agents/`. They, 
 and this policy are **committed**: every clone and every worktree gets the same setup. What is
 not committed is their working memory (plans, state, reviews, reports), listed in `.gitignore`.
 
-**Tickets are the project's GitLab issues.** The key `LEM-<n>` refers to issue no. `<n>`; the
+**Tickets are the project's GitHub issues.** The key `LEM-<n>` refers to issue no. `<n>`; the
 prefix is declared in `.claude/project.conf` (`TICKET_KEY=LEM`). The key is what names the
-branch (`LEM-12-<slug>`), the plan, the state and the review. `glab` must be installed and
-authenticated; without it, `ticket-reader` and `ticket-writer` stop and say so, and a request
+branch (`LEM-12-<slug>`), the plan, the state and the review. `gh` must be installed and
+authenticated (`gh auth status`); without it, `ticket-reader` and `ticket-writer` stop and say so, and a request
 already written out in plain text goes straight to the `planner`. Delegate work to the roles **on
 your own initiative**, without waiting to be told their names: each carries the model suited to
 its task, and calling them is what avoids handling everything at the price of reasoning.
@@ -34,10 +34,10 @@ what, in which order, and what is checked before anything is committed.
 | to measure performance, write a benchmark, decide whether something regressed | `perf-engineer` |
 | a fact that is not in the repository: a crate's docs, an LLVM or Z3 behavior, a version | `researcher` |
 | to understand an anomaly nobody can explain | `debugger` |
-| to write or fix the `.gitlab-ci.yml` pipeline, `cog.toml`, `deny.toml`, lint or toolchain config | `release-engineer` |
+| to write or fix the GitHub Actions workflows (`.github/`), the `justfile`, `cog.toml`, `deny.toml`, lint, format or toolchain config | `release-engineer` |
 | supply chain: dependencies, `cargo deny`, CI hardening, secrets | `devsecops` |
-| to open the merge request for a pushed branch, complete its description | `mr-writer` |
-| to decide whether a merge request goes into `main`, and merge it | `mr-reviewer` |
+| to open the pull request for a pushed branch, complete its description | `pr-writer` |
+| to decide whether a pull request goes into `main`, and merge it | `pr-reviewer` |
 | to commit, split a working tree into commits | **the exit gate**, then `committer` |
 
 The trigger is the intent, not the vocabulary used: "what's LEM-12" calls the `ticket-reader` just
@@ -70,8 +70,8 @@ answered directly. And a one-line fix whose test already exists does not deserve
 
 `ticket-reader` → `ticket-brancher` → (`language-designer`) → `planner` → `tester` →
 **red tests commit** → `coder` → **exit gate** → `reviewer` (∥ `auditor`, `proof-engineer`,
-`perf-engineer` when the change calls for them) → `committer` → push → `mr-writer` →
-`mr-reviewer` → merge
+`perf-engineer` when the change calls for them) → `committer` → push → `pr-writer` →
+`pr-reviewer` → merge
 
 The `ticket-brancher` comes **after** the reader: the branch name is built from the ticket title,
 and its base is deduced from the linked tickets, which must therefore have been read.
@@ -270,20 +270,23 @@ median of repeated runs, `mach_absolute_time` when the cycle counters of `kperf`
 not have) and writes its reports in `.claude/perf/<KEY>.md`. It never runs `sudo`: a measurement
 that needs root is a command it hands you, for the user to run.
 
-## Pipeline and supply chain
+## CI and supply chain
 
-- **`release-engineer` replaces the `coder`** on a step whose deliverable is a pipeline or build
-  policy file: `.gitlab-ci.yml`, `cog.toml`, `deny.toml`, `clippy.toml`, `rustfmt.toml`,
-  `rust-toolchain.toml`, `.cargo/config.toml`. These files decide what the build and the CI
-  accept, so the `coder` is refused them: a coder that loosens a lint turns a red check green
-  without fixing anything. The step's verification criterion is a command (`glab ci lint`,
-  `cargo deny check`, `cog check`, the four cargo commands) that you rerun yourself at the gate.
+- **`release-engineer` replaces the `coder`** on a step whose deliverable is a CI workflow or build
+  policy file: `.github/` (`.github/workflows/`, `.github/dependabot.yml`), `justfile`,
+  `cog.toml`, `deny.toml`, `clippy.toml`, `rustfmt.toml`, `rust-toolchain.toml`,
+  `.cargo/config.toml`, `taplo.toml`, `_typos.toml`, `.editorconfig`. These files decide what the
+  build and the CI accept, so the `coder` is refused them: a coder that loosens a lint turns a red
+  check green without fixing anything. The step's verification criterion is a command
+  (`actionlint`, `cog check`, `just check` or one of its recipes) that you rerun yourself at the
+  gate. `actionlint` must be installed (`brew install actionlint`); without it, say that the
+  workflow has not been validated.
   The workspace lints themselves live in the root `Cargo.toml`, which the coder can write: a
   change to `[workspace.lints]` is a point the `reviewer` must flag.
 - **`devsecops` fixes nothing**: it covers the supply chain (dependencies and their provenance,
-  `cargo deny`, the CI pipeline's exposure, secrets) and writes `.claude/security/<KEY>.md`. You
+  `cargo deny`, the CI workflows' exposure, secrets) and writes `.claude/security/<KEY>.md`. You
   settle its findings like `RESERVATIONS`, toward the role it designates. Call it when a
-  dependency is added or bumped, when `.gitlab-ci.yml` changes, and before the first release. It
+  dependency is added or bumped, when `.github/workflows/` changes, and before the first release. It
   does not replace the `auditor`: one looks at the delivery chain, the other at the code.
 
 ## The `debugger` is not in the chain, it plugs into it
@@ -327,16 +330,16 @@ the role requesting them (the `agent_type` of the event):
 | `planner` | outside `.claude/plans/` | `path-guard.sh` |
 | `reviewer` | outside `.claude/reviews/` | `path-guard.sh` |
 | `debugger` | outside `.claude/diagnostics/` | `path-guard.sh` |
-| `release-engineer` | outside `.gitlab-ci.yml`, `.gitlab/`, `ci/`, `cog.toml`, `deny.toml`, `clippy.toml`, `rustfmt.toml`, `rust-toolchain.toml`, `.cargo/config.toml`, `renovate.json` | `role-guard.sh` |
+| `release-engineer` | outside `.github/`, `justfile`, `cog.toml`, `deny.toml`, `clippy.toml`, `rustfmt.toml`, `rust-toolchain.toml`, `.cargo/config.toml`, `taplo.toml`, `_typos.toml`, `.editorconfig`; in the shell, `gh` only as `gh run list/view/watch` | `role-guard.sh` |
 | `devsecops` | outside `.claude/security/`; in the shell, nothing that writes or installs | `role-guard.sh` |
 | `proof-engineer` | outside `.claude/proofs/` and `examples/**/*.lm`; in the shell, nothing that writes outside its reports | `role-guard.sh` |
 | `perf-engineer` | outside `.claude/perf/`, `benches/`, `crates/*/benches/`; no `sudo` | `role-guard.sh` |
 | `language-designer` | outside `docs/`; in the shell, nothing that writes | `role-guard.sh` |
 | `ticket-brancher`, `committer`, `auditor`, `researcher` | nothing at all: no write tool | `tools:` |
-| `ticket-reader` | no file; in the shell, only `glab` and `git` reads | `role-guard.sh` |
-| `ticket-writer` | no file except drafts in `.claude/tmp/`; in the shell, a closed list of `glab` commands | `role-guard.sh` |
-| `mr-writer` | no file except drafts in `.claude/tmp/`; in the shell, `glab mr view/list/create/update/note` and `git` reads | `role-guard.sh` |
-| `mr-reviewer` | outside `.claude/reviews/mr/`; in the shell, `glab mr` reads, note, approve, merge, `git` reads, and the checks (`cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo doc`, `cargo deny check`, `cog check`); never a force, auto-confirm or `--fix` option | `role-guard.sh` |
+| `ticket-reader` | no file; in the shell, only `gh` and `git` reads | `role-guard.sh` |
+| `ticket-writer` | no file except drafts in `.claude/tmp/`; in the shell, a closed list of `gh` commands (`gh issue view/list/create/edit/comment`, `gh label list/create`, `gh api` GETs, comment PATCH); no assignee | `role-guard.sh` |
+| `pr-writer` | no file except drafts in `.claude/tmp/`; in the shell, `gh pr view/list/create/edit/comment` (`create` only with `--head`, never `--dry-run`) and `git` reads | `role-guard.sh` |
+| `pr-reviewer` | outside `.claude/reviews/pr/`; in the shell, `gh pr view/list/diff/checks/comment/merge`, `gh run list/view/watch`, `git` reads, and the checks (`just check` and its read-only recipes, `cargo fmt --check`, `cargo clippy`, `cargo nextest run`, `cargo test`, `cargo doc`, `cargo deny check`, `cog check`); a merge only with `--squash` or `--rebase` and `--match-head-commit`; never `--admin`, `--auto`, `--yes`, `--force` or `--fix` | `role-guard.sh` |
 
 For **every** subagent, whatever its name:
 
@@ -346,9 +349,11 @@ For **every** subagent, whatever its name:
 - no `ast-grep` with `-U` or `-i`: a mass rewrite the guard would see no path of;
 - no snapshot blessing (`cargo insta accept|review`, `INSTA_UPDATE`, `UPDATE_EXPECT`, `BLESS`,
   `TRYBUILD=overwrite`, `--bless`) except by the `tester`;
-- no `glab` outside the four GitLab roles, except `glab ci lint` for the `release-engineer`;
-- outside the `coder` and the `tester`, no `cargo fmt` without `--check`, no `cargo fix`, no
-  `--fix`, no `cargo add|remove|update|install`.
+- no `gh` outside the four GitHub roles, except `gh run list/view/watch` for the
+  `release-engineer`;
+- outside the `coder` and the `tester`, no `cargo fmt`, `just fmt` or `taplo fmt` without
+  `--check`, no `cargo fix`, no `--fix`, no `typos -w`, no `just setup`, no
+  `cargo add|remove|update|install`.
 
 **The guards fail closed.** Without `jq`, on an unreadable event, without a project anchor, or on
 any internal error, they refuse. A guard that is absent without anyone knowing would be worse than
@@ -411,17 +416,19 @@ is executable, is called with `create|remove <branch> <worktree-path>`.
 The main tree's **uncommitted** work does not follow into a new copy, which is why competing
 passes have their own recipe, above.
 
-## What leaves the repository: issues and merge requests
+## What leaves the repository: issues and pull requests
 
-**A single token, hence a guard rather than an absent tool.** `glab` carries the account's write
+**A single token, hence a guard rather than an absent tool.** `gh` carries the account's write
 rights for anyone who has the shell. What separates the roles is `role-guard.sh`: the
-`ticket-reader` only has reads, the `ticket-writer` and the `mr-writer` a closed list of commands,
-the `mr-reviewer` its checks and the merge, and **every other role is refused `glab`**, except
-`glab ci lint` for the `release-engineer`.
+`ticket-reader` only has reads, the `ticket-writer` and the `pr-writer` a closed list of commands,
+the `pr-reviewer` its checks and the merge, and **every other role is refused `gh`**, except
+`gh run list/view/watch` for the `release-engineer`.
 
-**The confirmation is the harness's permission prompt, and that is intended.** Only `glab issue
-view`, `glab issue list` and `glab ci lint` are in `allow`. **Do not add any write `glab` command**
-(issue create/update/note, mr create/update/note/approve/merge) to an `allow` list: the prompt is
+**The confirmation is the harness's permission prompt, and that is intended.** Only the reads
+`gh issue view`, `gh issue list`, `gh pr view`, `gh pr list`, `gh pr checks`, `gh run list`,
+`gh run view`, and `actionlint`, are in `allow`. **Do not add any write `gh` command** (issue
+create/edit/comment, pr create/edit/comment/merge, `gh api` with a method or a field) to an
+`allow` list: the prompt is
 what submits each issue, each description and each merge to the user before it goes out. A refusal
 by the user is a decision: the role stops and escalates it.
 
@@ -431,28 +438,32 @@ its prompt and in the guard's allowlist, not in a command you run yourself.
 **Note the created keys in `.claude/state/`.** The `ticket-writer` looks for a duplicate before
 creating, but that protection dies with its pass.
 
-## A finished ticket goes all the way: merge request, review, merge
+## A finished ticket goes all the way: pull request, review, merge
 
 A ticket is not finished when its code is committed: it is finished when it is in `main`.
 
 ```
-exit gate → committer → push → mr-writer → mr-reviewer → merge
+exit gate → committer → push → pr-writer → pr-reviewer → merge
 ```
 
-- **Chain on without waiting to be asked.** The finished ticket calls for its merge request, the
-  merge request for its review, the review for the merge.
+- **Chain on without waiting to be asked.** The finished ticket calls for its pull request, the
+  pull request for its review, the review for the merge.
 - **You push the branch yourself.** An ordinary push is shown to the user before it goes out;
   force push, `--force-with-lease` and remote branch deletion are denied by `settings.json`.
-- **`mr-writer` opens the merge request** and describes what the commits deliver, each acceptance
+- **`pr-writer` opens the pull request** and describes what the commits deliver, each acceptance
   criterion with how it was verified, what remains open, and `Closes #<n>`.
-- **`mr-reviewer` decides whether it goes into `main`**, through seven checks in order: draft,
-  target branch, pipeline, open discussions, the checks it runs itself, agreement between
+- **`pr-reviewer` decides whether it goes into `main`**, through seven checks in order: draft,
+  base branch, CI checks, open review conversations, the checks it runs itself, agreement between
   description and diff, absence of conflict. Verdict `MERGEABLE`, `RESERVATIONS` or `BLOCKED`.
-- **The merge is submitted to the user**: `glab mr merge` is in no `allow` list, and the guard
-  refuses the `mr-reviewer` any option that would skip the confirmation. The merge method is not
-  guessed, and the source branch is not deleted without an explicit request.
-- **The existence of a CI is checked, not assumed** (`git show origin/main:.gitlab-ci.yml`), and an
-  absent pipeline is not a green pipeline.
+- **The merge is submitted to the user, and only after their confirmation**: `gh pr merge` is in
+  no `allow` list, and the guard refuses the `pr-reviewer` any option that would skip the
+  confirmation or bypass the branch protection (`--admin`, `--auto`, `--yes`, `--force`). The
+  repository disallows merge commits: `--squash` or `--rebase` only, never guessed, with
+  `--match-head-commit <sha>` so that only the commit that was checked lands, and a squash
+  subject that is a Conventional Commit. The head branch is not deleted without an explicit
+  request.
+- **The existence of a CI is checked, not assumed** (`git show origin/main:.github/workflows/ci.yml`),
+  and a pull request with no checks reported is not a green one.
 
 ## Commits carry the Claude co-author trailer
 
@@ -466,10 +477,10 @@ after a blank line, as a Conventional Commits footer (`cog verify` accepts it). 
 adds it; it is the only attribution line. No `Generated with`, no session link, no mention of a
 model in the subject or the body: the message talks about the change, the trailer says who wrote it.
 
-## What goes out to GitLab carries no em dash
+## What goes out to GitHub carries no em dash
 
 A style preference of the user's for what bears their name once published: commit messages,
-merge request titles and descriptions, GitLab issues and comments contain no em dash (U+2014). A
+pull request titles and descriptions, GitHub issues and comments contain no em dash (U+2014). A
 comma, a colon, a parenthesis or an en dash say the same thing. The roles that write to the outside
 carry it in their prompt; reread what you dictate to them. It does not apply to files of the
 repository.
@@ -582,7 +593,7 @@ context is polluted.
 ## Handoff rules
 
 1. **The `ticket-reader`'s report is authoritative.** The following roles do not go back to query
-   GitLab. If the report is insufficient, relaunch the `ticket-reader`.
+   GitHub. If the report is insufficient, relaunch the `ticket-reader`.
 2. **The plan is written to a file, and that file is what circulates.** The `planner` writes
    `.claude/plans/<TICKET-KEY>.md`; **submit it to the user and wait for their review** before
    anything downstream consumes it. Then pass the **path** to the `tester`, the `coder` and the
@@ -656,20 +667,17 @@ the end of the chain or from a cold "commit", the order is the same: the checks,
 `committer`.
 
 **First, which branch are you on?** If it is `main`, **stop**: work is committed on a ticket branch
-and goes out as a merge request. Launch the `ticket-brancher`, or ask the user, and if they confirm,
+and goes out as a pull request. Launch the `ticket-brancher`, or ask the user, and if they confirm,
 **tell the `committer`**, which will otherwise refuse.
 
 Then, in this order. None is skipped because "it looks fine".
 
-1. **The repository's checks pass**, run by you and read, not taken from the coder's report. They
-   are the commands of `AGENTS.md`, the same as the CI:
+1. **The repository's checks pass**, run by you and read, not taken from the coder's report. It
+   is the single command of `AGENTS.md`, the one whose recipes the CI runs:
    ```bash
-   cargo fmt --all --check
-   cargo clippy --workspace --all-targets -- -D warnings
-   cargo test --workspace
-   RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
-   cargo deny check            # when Cargo.toml, Cargo.lock or deny.toml changed
+   just check    # fmt-check, lint, test, doc, deny, spell, rules
    ```
+   When it fails, rerun the failing recipe alone (`just lint`, `just test`, …) to read its output.
    Red ⇒ back to the `coder`, with the error output.
 2. **Tests and specs are intact** since the red tests commit (rule 4).
 3. **The `reviewer` returns its verdict.** Pass it the ticket report, the plan's path, the base and
@@ -689,7 +697,7 @@ verdicts, settled like `RESERVATIONS`:
 - the **`proof-engineer`**: `crates/lemma-verify/` or a contract clause of a `.lm` file changed;
 - the **`perf-engineer`**: perf-labelled work, or a change to `crates/lemma-codegen/` or
   `crates/lemma-jit/`;
-- the **`devsecops`**: a dependency added or bumped, `.gitlab-ci.yml` changed.
+- the **`devsecops`**: a dependency added or bumped, `.github/workflows/` changed.
 
 The `reviewer` answers "does this do what the ticket asked"; the others "is it well done", "can the
 proof be trusted", "is it as fast as claimed", "is the supply chain sound". Perfectly compliant

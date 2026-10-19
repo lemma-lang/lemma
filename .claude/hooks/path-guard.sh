@@ -160,13 +160,14 @@ under_dir() { # $1 = absolute path, $2 = expected directory, relative to the pro
   return 1
 }
 
-# The files that decide what the build and the CI accept: lints, formatting,
-# commit rules, dependency policy. They belong to the release-engineer; a
+# The files that decide what the build and the CI accept: the workflows, lints,
+# formatting, commit rules, dependency policy, the justfile the CI runs. They belong to the release-engineer; a
 # coder that loosens one turns a red check green without touching the code.
 is_build_policy() { # $1 = path relative to the project
   case "$1" in
-    .gitlab-ci.yml|.gitlab/*|ci/*|cog.toml|deny.toml|clippy.toml|.clippy.toml|\
-    rustfmt.toml|.rustfmt.toml|rust-toolchain|rust-toolchain.toml|.cargo/config.toml) return 0 ;;
+    .github/*|cog.toml|deny.toml|clippy.toml|.clippy.toml|rustfmt.toml|.rustfmt.toml|\
+    rust-toolchain|rust-toolchain.toml|.cargo/config.toml|justfile|taplo.toml|.taplo.toml|\
+    _typos.toml|typos.toml|.typos.toml|.editorconfig) return 0 ;;
   esac
   return 1
 }
@@ -406,8 +407,8 @@ their guards, and you are the coder.
     $cmd
 If it looks wrong to you, say what and why in your report: the user fixes it."
           ;;
-        *.gitlab-ci.yml*|*cog.toml*|*deny.toml*|*clippy.toml*|*rustfmt.toml*|\
-        *rust-toolchain*|*.cargo/config.toml*)
+        *.github/*|*cog.toml*|*deny.toml*|*clippy.toml*|*rustfmt.toml*|\
+        *rust-toolchain*|*.cargo/config.toml*|*justfile*|*taplo.toml*|*typos.toml*|*.editorconfig*)
           refuse \
 "Command refused: it appears to write to a build or CI policy file, and you are the coder.
     $cmd

@@ -13,7 +13,7 @@ it. You modify no working file and you commit nothing.
 
 1. `git branch -a --sort=-committerdate`: recent branches are the most reliable source. Prefix
    (`feature/`, `feat/`, none), position of the ticket key, separator, case, length.
-2. `AGENTS.md`, `README.md`, and the branch patterns in `.gitlab-ci.yml`: if they impose a
+2. `AGENTS.md`, `README.md`, and the branch filters in `.github/workflows/`: if they impose a
    format, it takes precedence over history.
 3. In the absence of any signal, use `LEM-<n>-<slug>`, for example `LEM-12-loop-carries`. The
    prefix is the one declared in `.claude/project.conf` (`TICKET_KEY=`): read it there

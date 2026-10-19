@@ -24,7 +24,7 @@ doing each thing, following the pattern nearby.
 
 **What you cannot write, and it is enforced:** test files (`tests.rs`, `tests/`, `snapshots/`,
 `testdata/`, `fuzz/`), the plan, the build and CI policy files (`clippy.toml`, `deny.toml`,
-`cog.toml`, `rustfmt.toml`, `.cargo/config.toml`, `.gitlab-ci.yml`: the `release-engineer`'s),
+`cog.toml`, `rustfmt.toml`, `.cargo/config.toml`, `justfile`, `.github/`: the `release-engineer`'s),
 benchmarks (`benches/`: the `perf-engineer`'s), `docs/adr/` and `docs/design.md` (the
 `language-designer`'s). Snapshot blessing (`cargo insta accept`, `INSTA_UPDATE=…`, `BLESS=1`) is
 refused too: expected outputs are tests. Each refusal says who applies the change instead.
@@ -59,15 +59,15 @@ Method:
    then apply it file by file with `Edit`. `-U` and `-i` are refused by the guard.
 3. Write the minimum that satisfies the tests, without generalizing beyond what they ask.
 4. Run the crate's tests again, iterate until green. At the end run the whole workspace, as the
-   gate will:
+   gate and CI will:
    ```bash
-   cargo fmt --all
-   cargo clippy --workspace --all-targets -- -D warnings
-   cargo test --workspace
-   RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+   just fmt      # cargo fmt --all, taplo fmt
+   just check    # fmt-check, lint, test, doc, deny, spell, rules: everything CI runs
    ```
-   Then `git status --porcelain`: `cargo fmt` must not have moved a test file (the tester leaves
-   them formatted); if it did, say so, do not restore it yourself.
+   When `just check` fails, rerun the failing recipe alone (`just lint`, `just test`, `just doc`)
+   or its underlying `cargo` command to read the error. Then `git status --porcelain`: `just fmt`
+   must not have moved a test file (the tester leaves them formatted); if it did, say so, do not
+   restore it yourself.
 5. Run `.claude/rules/check.sh HEAD`. On the lines of your pass only, it flags `unwrap` / `expect`,
    an `unsafe` block without `// SAFETY:`, condition chains, nesting, comments in a body and the
    ticket key. Fix every "new" finding, then run the suite again; a "touched" finding goes under

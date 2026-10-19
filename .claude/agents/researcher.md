@@ -23,7 +23,7 @@ Method:
 
 1. **First look at what the repository knows about itself.** The versions actually used are in
    `Cargo.lock` and the crates' `Cargo.toml` (`inkwell` 0.10 with feature `llvm22-1`, `z3` 0.21,
-   LLVM 22, the Rust toolchain of `.gitlab-ci.yml`). A question asked without that version calls
+   LLVM 22, the Rust toolchain of `rust-toolchain.toml`). A question asked without that version calls
    for an answer about a different version from the one running here.
 2. **Search one question at a time**, short and precise, with the version in it. `WebSearch` gives
    you titles and URLs, nothing more: open the selected pages with `WebFetch`, that is where you
