@@ -80,19 +80,29 @@ fi
 # Every role shares the main checkout, and only the ticket-brancher moves its
 # HEAD: a role that switches branch, stashes or hard-resets drags another
 # role's uncommitted work onto the wrong branch, or throws it away. A restore
-# of named files (git checkout <rev> -- <paths>) stays allowed.
-git_sub='(^|[;&|(`[:space:]])git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+--[a-z-]+(=[^[:space:]]+)?)*[[:space:]]+'
+# of named files (git checkout <rev> -- <paths>, git restore <paths>) stays
+# allowed; a restore of the whole tree does not. A mixed reset only touches the
+# index, so it stays allowed. The -C value is optional because code_of drops a
+# quoted path ("$wt") and leaves the flag alone.
+git_sub='(^|[;&|(`[:space:]])git([[:space:]]+-[Cc]([[:space:]]+[^[:space:]-][^[:space:]]*)?|[[:space:]]+--[a-z-]+(=[^[:space:]]+)?)*[[:space:]]+'
+whole_tree='[[:space:]](\.|\./|:/|\*)([[:space:]]|$)'
 if [ "$tool" = "Bash" ] && [ -n "$cmd" ] && [ "$role" != "ticket-brancher" ]; then
   moves=0
   printf '%s\n' "$code" | grep -Eq "${git_sub}(switch|rebase|merge|pull|cherry-pick|revert|bisect)([[:space:]]|\$)" && moves=1
-  printf '%s\n' "$code" | grep -Eq "${git_sub}stash([[:space:]]+(push|pop|apply|drop|clear|save|branch|create|store)([[:space:]]|\$)|[[:space:]]*(\$|[;&|)]))" && moves=1
+  if printf '%s\n' "$code" | grep -Eo "${git_sub}stash([[:space:]][^;&|]*)?" \
+     | grep -Evq 'stash[[:space:]]+(list|show)([[:space:]]|$)'; then moves=1; fi
   printf '%s\n' "$code" | grep -Eq "${git_sub}reset([[:space:]][^;&|]*)?[[:space:]]--(hard|keep|merge|soft)([[:space:]]|\$)" && moves=1
-  if printf '%s\n' "$code" | grep -Eo "${git_sub}checkout([[:space:]][^;&|]*)?" \
-     | grep -Evq '[[:space:]]--([[:space:]]|$)'; then moves=1; fi
+  printf '%s\n' "$code" | grep -Eq "${git_sub}clean([[:space:]][^;&|]*)?[[:space:]](-[A-Za-z]*f|--force)" && moves=1
+  checkouts=$(printf '%s\n' "$code" | grep -Eo "${git_sub}checkout([[:space:]][^;&|]*)?")
+  if [ -n "$checkouts" ]; then
+    printf '%s\n' "$checkouts" | grep -Evq '[[:space:]]--[[:space:]]+[^[:space:]]' && moves=1
+    printf '%s\n' "$checkouts" | grep -Eq "[[:space:]]--.*${whole_tree}" && moves=1
+  fi
+  printf '%s\n' "$code" | grep -Eo "${git_sub}restore([[:space:]][^;&|]*)?" | grep -Eq "$whole_tree" && moves=1
   [ "$moves" -eq 0 ] || refuse \
 "Command refused: it moves HEAD or rewrites the shared working tree (git switch,
-git checkout <branch>, git stash, git reset --hard, rebase, merge, pull...),
-and you are $role.
+git checkout <branch>, git stash, git reset --hard, git clean -f, a restore of
+the whole tree, rebase, merge, pull...), and you are $role.
     $cmd
 Other roles may have uncommitted work in this checkout. Stay on the branch you
 were given; if the work needs another branch, say so in your report: the main
