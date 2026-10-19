@@ -25,10 +25,11 @@ default:
 # Toolchain with LLVM 22 and Z3, for jobs that compile the workspace.
 .native-deps:
   before_script:
+    - install -d /etc/apt/keyrings
+    - curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/keyrings/llvm.asc
+    - echo "deb [signed-by=/etc/apt/keyrings/llvm.asc] http://apt.llvm.org/trixie/ llvm-toolchain-trixie-22 main" > /etc/apt/sources.list.d/llvm.list
     - apt-get update -qq
-    - apt-get install -y -qq lsb-release wget gnupg software-properties-common libz3-dev libzstd-dev > /dev/null
-    - wget -q https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 22 > /dev/null
-    - apt-get install -y -qq libpolly-22-dev > /dev/null
+    - apt-get install -y -qq llvm-22-dev libpolly-22-dev libz3-dev libzstd-dev > /dev/null
 
 fmt:
   stage: check
