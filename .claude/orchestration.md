@@ -352,8 +352,10 @@ For **every** subagent, whatever its name:
   (or `--soft`, `--keep`, `--merge`), `git clean -f`, a checkout or restore of the whole tree
   (`.`, `:/`), `rebase`, `merge`, `pull`, `cherry-pick`, `revert`, `bisect`. Every role works in
   the same checkout, and one that switches branch drags another's uncommitted work along.
-  Restoring named files (`git checkout <rev> -- <paths>`, `git restore <paths>`) and a mixed
-  `git reset`, which only touches the index, stay allowed. A role that needs another branch says
+  Restoring named files (`git checkout <rev> -- <paths>`, `git restore <paths>`) stays allowed,
+  and so does a mixed `git reset`, which the `committer` needs to unstage (`git reset HEAD
+  <path>`): it keeps the working tree, but with a commit it also moves the branch, which only the
+  role prompts forbid. A role that needs another branch says
   so, and you give it a worktree;
 - no snapshot blessing (`cargo insta accept|review`, `INSTA_UPDATE`, `UPDATE_EXPECT`, `BLESS`,
   `TRYBUILD=overwrite`, `--bless`) except by the `tester`;
