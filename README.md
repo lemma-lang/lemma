@@ -7,7 +7,7 @@
 
 # Lemma
 
-A language designed to be written by an AI: low-level in control, high-level in semantics.
+A language written and read by AI: low-level in control, high-level in semantics.
 
 Every function carries a **spec** (what it computes, in the obvious way) and an **impl** (how, optimized).
 The compiler proves they are equivalent before generating native code, like lemmas stacking on one another.
@@ -20,11 +20,11 @@ variant skips the checks for callers that guarantee them ([ADR 0005](docs/adr/00
 
 ```
 fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
-  eff  pure
-  req  n % 16 == 0
+  eff pure
+  req n % 16 == 0
   spec Σ(i<n) a[i]*b[i]
   impl ...
-  equiv spec ≈ impl  allow(fp_reassoc, fp_contract)
+  equiv allow(fp_reassoc, fp_contract)
 ```
 
 ## Principles
@@ -33,6 +33,9 @@ fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
 - **Types carry memory layout**: vector width, alignment, bounds (`i: u64 < n`).
 - **Explicit effects**: `pure`, `ro`, `wo`, disjoint regions. No alias analysis guesswork.
 - **Separate spec / impl**, equivalence proven by SMT (Z3).
+- **A wrong spec is caught too**: an independent model reviews each contract against the task, and the
+  spec is executed against test vectors ([ADR 0006](docs/adr/0006-optimized-for-its-writer.md)).
+- **Every surface optimized for the models that write and read it**, not for human taste.
 - **Nothing implicit**: floating-point reassociation and contraction, overflow and traps are opt-in.
 - **Hash-addressed functions**, keyed by their AST.
 - **Typed CPU resources**, like memory: cores, caches, vector units (see [docs/design.md](docs/design.md)).
