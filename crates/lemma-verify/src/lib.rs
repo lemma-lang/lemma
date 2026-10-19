@@ -1,5 +1,7 @@
 //! Type checking and proofs (bounds, spec/impl equivalence) via Z3.
 
+#![deny(missing_docs)]
+
 #[cfg(test)]
 mod tests {
     use z3::ast::Int;

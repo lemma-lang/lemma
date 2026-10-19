@@ -1,5 +1,7 @@
 //! LLVM IR emission with aliasing and alignment metadata.
 
+#![deny(missing_docs)]
+
 #[cfg(test)]
 mod tests {
     use inkwell::context::Context;
