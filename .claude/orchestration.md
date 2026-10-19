@@ -462,6 +462,11 @@ exit gate → committer → push → pr-writer → pr-reviewer → merge
   `--match-head-commit <sha>` so that only the commit that was checked lands, and a squash
   subject that is a Conventional Commit. The head branch is not deleted without an explicit
   request.
+- **Code from a fork is untrusted.** The repository is public: a pull request from a fork is never
+  checked out, built or tested on this machine, which holds the maintainer's credentials and whose
+  guards are scripts read from the working tree. The `pr-reviewer` reads its diff and relies on
+  CI, and a change to a policy path (`.github/`, `justfile`, `.claude/`, …) is never merged on
+  green checks alone, since CI ran the pull request's own version of those files.
 - **The existence of a CI is checked, not assumed** (`git show origin/main:.github/workflows/ci.yml`),
   and a pull request with no checks reported is not a green one.
 

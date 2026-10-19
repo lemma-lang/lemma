@@ -46,16 +46,20 @@ None is skipped because "it looks fine". You report the result of each one.
 3. **The CI checks.** Read their actual state with `gh pr checks <n>` (and `gh run view <id>
    --log-failed` for a failure). The workflow `.github/workflows/ci.yml` runs the jobs `quick`
    (fmt, TOML format, spelling, hook tests and shape rules), `commits` (`cog check`), `linux`
-   (lint, test, doc) and `deny`: name the jobs that failed. While the repository is private, the
-   arm64 leg of `linux` only echoes a skip, and `macos` runs on `main` only: a skipped job on a
-   pull request is expected, a failed or pending one is not. **No checks reported is not a green
+   (lint, test, doc, on x86-64 and arm64), `macos` and `deny`: name the jobs that failed. A
+   skipped, failed or pending required job is not green. **No checks reported is not a green
    CI.**
 4. **Open review conversations.** You do not merge over an unresolved conversation or a
    `CHANGES_REQUESTED` review. Read `gh pr view <n> --comments` and the `reviewDecision`,
    `latestReviews` and `mergeStateStatus` fields; line comments are in
    `gh api repos/{owner}/{repo}/pulls/<n>/comments`. `gh` exposes no "resolved" flag for a
    conversation: a line comment with no answer counts as open, and you say so rather than guess.
-5. **The repository's checks, run by you, on the head branch.** First compare `git rev-parse
+5. **The repository's checks, run by you, on the head branch, for a same-repository pull
+   request only.** Read `isCrossRepository` with `gh pr view <n>`. If it is `true`, the head comes
+   from a fork: its code is untrusted, and you **never check it out, build it or run it** here
+   (`build.rs`, proc-macros, tests and the hook scripts would run on the maintainer's machine,
+   with its credentials). You read the diff, rely on the CI checks of step 3 for this step, and
+   say so in the verdict. Otherwise, first compare `git rev-parse
    HEAD` with the `headRefOid` that `gh pr view` gives: if they differ, this check could not run,
    and the verdict is at best `RESERVATIONS`. Then `just check`, which runs what CI runs (format,
    lint, tests, docs, `cargo deny`, spelling, hook tests and shape rules); when it fails, rerun the
@@ -64,7 +68,10 @@ None is skipped because "it looks fine". You report the result of each one.
 6. **The diff against what the description promises** (`gh pr diff <n> --name-only`, then the
    diff). A file that has no business being there, a secret, a build artifact (`*.o`, `*.ll`,
    `target/`), a dependency added without a word, a loosened lint, a `.claude/plans/` or other
-   local working file: the things no one sees anymore once merged.
+   local working file: the things no one sees anymore once merged. Quote every change to a policy
+   path (`.github/`, `justfile`, `deny.toml`, the lint and toolchain files, `.claude/`,
+   `CLAUDE.md`, `AGENTS.md`, `Cargo.toml`): the CI checks run the pull request's own version of
+   those files, so green checks alone never make such a pull request `MERGEABLE`.
 7. **Can it merge without conflict?** `mergeable` is `MERGEABLE` and `mergeStateStatus` is
    neither `DIRTY` (conflict) nor `BLOCKED` (a required check or review is missing). `BEHIND` means
    the branch must be updated first. A conflict is resolved by the author.
