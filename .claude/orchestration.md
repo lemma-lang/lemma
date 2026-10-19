@@ -347,6 +347,12 @@ For **every** subagent, whatever its name:
   `rules/`, `orchestration.md`, `project.conf`, `test-paths.txt`, nor `CLAUDE.md` and
   `AGENTS.md`, which are the main session's instructions;
 - no `ast-grep` with `-U` or `-i`: a mass rewrite the guard would see no path of;
+- except the `ticket-brancher`, nothing that moves HEAD or rewrites the shared working tree:
+  `git switch`, `git checkout <branch>`, `git stash` (but `list`/`show`), `git reset --hard`
+  (or `--soft`, `--keep`, `--merge`), `rebase`, `merge`, `pull`, `cherry-pick`, `revert`,
+  `bisect`. Every role works in the same checkout, and one that switches branch drags another's
+  uncommitted work along. Restoring named files (`git checkout <rev> -- <paths>`) stays allowed. A
+  role that needs another branch says so, and you give it a worktree;
 - no snapshot blessing (`cargo insta accept|review`, `INSTA_UPDATE`, `UPDATE_EXPECT`, `BLESS`,
   `TRYBUILD=overwrite`, `--bless`) except by the `tester`;
 - no `gh` outside the four GitHub roles, except `gh run list/view/watch` for the
