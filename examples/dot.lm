@@ -1,0 +1,17 @@
+; Dot product, target: Apple M1 Pro (128-bit NEON, 4 FP pipelines).
+; f32x4 = native width; 4 independent accumulators to fill the 4 pipelines.
+
+fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
+  eff  pure
+  req  n % 16 == 0
+  spec Σ(i<n) a[i]*b[i]
+
+  impl
+    loop i ∈ 0..n step 16 carry(c0 c1 c2 c3 = splat.f32x4 0.0)
+      next c0 = fma c0 (ld.f32x4 a[i+0])  (ld.f32x4 b[i+0])
+      next c1 = fma c1 (ld.f32x4 a[i+4])  (ld.f32x4 b[i+4])
+      next c2 = fma c2 (ld.f32x4 a[i+8])  (ld.f32x4 b[i+8])
+      next c3 = fma c3 (ld.f32x4 a[i+12]) (ld.f32x4 b[i+12])
+    ret hsum (add (add c0 c1) (add c2 c3))
+
+  equiv spec ≈ impl  allow(fp_reassoc)

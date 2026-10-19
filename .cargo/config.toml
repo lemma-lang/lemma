@@ -1,0 +1,7 @@
+# Homebrew keg-only installs: inkwell 0.10 supports LLVM up to 22.
+[env]
+LLVM_SYS_221_PREFIX = "/opt/homebrew/opt/llvm@22"
+Z3_SYS_Z3_HEADER = "/opt/homebrew/opt/z3/include/z3.h"
+
+[build]
+rustflags = ["-L", "/opt/homebrew/opt/z3/lib"]

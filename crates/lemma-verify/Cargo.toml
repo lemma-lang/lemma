@@ -1,0 +1,7 @@
+[package]
+name = "lemma-verify"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+z3 = "0.21"

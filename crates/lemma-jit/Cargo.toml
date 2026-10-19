@@ -1,0 +1,6 @@
+[package]
+name = "lemma-jit"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
