@@ -1,5 +1,5 @@
 ; Dot product, target: Apple M1 Pro (128-bit NEON, 4 FP pipelines).
-; f32x4 = native width; 4 independent accumulators to fill the 4 pipelines.
+; f32x4 = native width. 4 accumulators is a guess: the count is FMA latency × throughput, to be tuned per target.
 
 fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
   eff  pure
@@ -14,4 +14,4 @@ fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
       next c3 = fma c3 (ld.f32x4 a[i+12]) (ld.f32x4 b[i+12])
     ret hsum (add (add c0 c1) (add c2 c3))
 
-  equiv spec ≈ impl  allow(fp_reassoc)
+  equiv spec ≈ impl  allow(fp_reassoc, fp_contract)
