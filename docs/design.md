@@ -71,7 +71,7 @@ accumulator count and the vector width, which wait for the tuned-parameter decis
 
 ### The accumulator count is a tuned parameter, not a constant
 
-`dot` hard-codes four accumulators, "to fill the 4 pipelines". The number that keeps the FMA units
+`dot` hard-codes four accumulators. The number that keeps the FMA units
 busy depends on the FMA latency and issue width of the core and on the ratio of loads to FMAs in
 the loop: four is a guess, not a derivation, and it is wrong on another core. The same holds for
 the vector width on a target where `f32x8` is native. Both should be compile-time parameters of the
