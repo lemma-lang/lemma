@@ -1,0 +1,15 @@
+/.github/ @acaetano-rodium
+/justfile @acaetano-rodium
+/cog.toml @acaetano-rodium
+/deny.toml @acaetano-rodium
+/clippy.toml @acaetano-rodium
+/rustfmt.toml @acaetano-rodium
+/rust-toolchain.toml @acaetano-rodium
+/.cargo/ @acaetano-rodium
+/taplo.toml @acaetano-rodium
+/_typos.toml @acaetano-rodium
+/.claude/ @acaetano-rodium
+/CLAUDE.md @acaetano-rodium
+/AGENTS.md @acaetano-rodium
+/Cargo.toml @acaetano-rodium
+/Cargo.lock @acaetano-rodium

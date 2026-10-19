@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -16,9 +19,12 @@ jobs:
   # Fast checks that need no LLVM.
   quick:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: taiki-e/install-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: just,typos,taplo,ast-grep
       - run: rustup component add rustfmt
@@ -30,67 +36,68 @@ jobs:
   commits:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: taiki-e/install-action@v2
+          persist-credentials: false
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cocogitto
-      - run: cog check "origin/${{ github.base_ref }}..HEAD"
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: cog check "origin/${BASE_REF}..HEAD"
 
   # Lint, test and docs on Linux (Debian trixie container: LLVM 22 from apt.llvm.org, Z3 4.13).
   linux:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-24.04
-            enabled: true
-          # Arm64 Linux runners are free for public repositories only.
-          - runner: ubuntu-24.04-arm
-            enabled: ${{ !github.event.repository.private }}
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
-    container: rust:1.97-trixie
+    timeout-minutes: 90
+    container: rust:1.97-trixie@sha256:b1b3c9c0d921d7fa0a6d1f9ec7e4eab87f8c8ec97644c3d791450f131dec813f
     env:
       LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
       Z3_SYS_Z3_HEADER: /usr/include/z3.h
     steps:
-      - if: ${{ !matrix.enabled }}
-        run: echo "Skipped while the repository is private."
-      - if: matrix.enabled
-        uses: actions/checkout@v4
-      - if: matrix.enabled
-        name: Install LLVM 22 and Z3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install LLVM 22 and Z3
         run: |
+          expected=6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
+          actual=$(gpg --show-keys --with-colons .github/llvm-snapshot.gpg.key | awk -F: '/^fpr:/ { print $10; exit }')
+          test "$actual" = "$expected"
           install -d /etc/apt/keyrings
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/keyrings/llvm.asc
-          echo "deb [signed-by=/etc/apt/keyrings/llvm.asc] http://apt.llvm.org/trixie/ llvm-toolchain-trixie-22 main" > /etc/apt/sources.list.d/llvm.list
+          install -m 0644 .github/llvm-snapshot.gpg.key /etc/apt/keyrings/llvm.asc
+          echo "deb [signed-by=/etc/apt/keyrings/llvm.asc] https://apt.llvm.org/trixie/ llvm-toolchain-trixie-22 main" > /etc/apt/sources.list.d/llvm.list
           apt-get update -qq
           apt-get install -y -qq llvm-22-dev libpolly-22-dev libz3-dev libzstd-dev > /dev/null
-      - if: matrix.enabled
-        uses: Swatinem/rust-cache@v2
-      - if: matrix.enabled
-        uses: taiki-e/install-action@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: just,cargo-nextest
-      - if: matrix.enabled
-        run: just lint
-      - if: matrix.enabled
-        run: just test
-      - if: matrix.enabled
-        run: just doc
+      - run: just lint
+      - run: just test
+      - run: just doc
 
-  # Apple Silicon, the reference target. macOS minutes count ten times on private
-  # repositories, so this runs on main only until the repository is public.
+  # Apple Silicon, the reference target.
   macos:
-    if: github.ref == 'refs/heads/main' || !github.event.repository.private
     runs-on: macos-15
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - run: brew install llvm@22 z3
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: just,cargo-nextest
       - run: just lint
@@ -98,6 +105,12 @@ jobs:
 
   deny:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: just,cargo-deny@0.20.2
+      - run: just deny
