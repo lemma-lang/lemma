@@ -5,6 +5,10 @@ A language designed to be written by an AI: low-level in control, high-level in 
 Every function carries a **spec** (what it computes, in the obvious way) and an **impl** (how, optimized).
 The compiler proves they are equivalent before generating native code, like lemmas stacking on one another.
 
+Lemma targets performance-critical code that must be proven correct (control loops, kernels, signal
+processing, cryptography) and is callable from any language through the C ABI or WebAssembly.
+See [ADR 0002](docs/adr/0002-scope.md).
+
 ```
 fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
   eff  pure
