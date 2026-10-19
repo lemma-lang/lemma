@@ -14,6 +14,10 @@
 
 set -uo pipefail
 
+# Run from a git hook (pre-push), GIT_DIR points at the outer repository and
+# overrides the scratch repositories these cases create.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
 here=$(cd "$(dirname "$0")" && pwd -P)
 hooks=$(cd "$here/.." && pwd -P)
 root=$(cd "$hooks/../.." && pwd -P)
