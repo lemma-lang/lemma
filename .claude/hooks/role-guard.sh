@@ -81,8 +81,9 @@ fi
 # HEAD: a role that switches branch, stashes or hard-resets drags another
 # role's uncommitted work onto the wrong branch, or throws it away. A restore
 # of named files (git checkout <rev> -- <paths>, git restore <paths>) stays
-# allowed; a restore of the whole tree does not. A mixed reset only touches the
-# index, so it stays allowed. The -C value is optional because code_of drops a
+# allowed; a restore of the whole tree does not. A mixed reset keeps the working
+# tree and is how the committer unstages, so it stays allowed, even though with a
+# commit it also moves the branch. The -C value is optional because code_of drops a
 # quoted path ("$wt") and leaves the flag alone.
 git_sub='(^|[;&|(`[:space:]])git([[:space:]]+-[Cc]([[:space:]]+[^[:space:]-][^[:space:]]*)?|[[:space:]]+--[a-z-]+(=[^[:space:]]+)?)*[[:space:]]+'
 whole_tree='[[:space:]](\.|\./|:/|\*)([[:space:]]|$)'
