@@ -31,7 +31,7 @@ hypotheses its experiment tests, not as design goals. This ADR does not change t
 criterion by which surfaces are chosen; ADR 0004 measures whether the choice paid off, and Lemma
 claims no gain until it has.
 
-Research inputs, outside Git and not decisions (the research report kept in `reports/`, in French):
+Research inputs, outside Git and not decisions (a research report kept outside the repository):
 published work reports that structured diagnostics and concrete counterexamples are the strongest
 lever on a model's repair loop, with gains flattening after two or three rounds; that
 compiler-generated, IR-like names hurt models; that a grammar without formatting tokens saves
@@ -412,8 +412,8 @@ loop, and the spec evaluation is part of Lemma's toolchain output on the visible
   runs, before the pilot; a spec reviewer and its prompt, frozen before the measured runs like the
   cards; spec evaluation on the visible and hidden tests. The failure classification of ADR 0004
   becomes mostly a reading of the diagnostic kinds and of the spec evaluation.
-- **For the README**: its snippet uses `≈` and aligned columns, and its spellings stay
-  provisional until the calibration settles them. It must not claim that Lemma costs fewer tokens
+- **For the README**: the spellings of its snippet stay provisional until the calibration
+  settles them. It must not claim that Lemma costs fewer tokens
   or is intuitive for a model: ADR 0004 tests those claims. It must not present a person reading
   the spec as Lemma's safeguard.
 - The parser carries two spellings of the contract symbols until the freeze, and the losing

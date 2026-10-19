@@ -4,7 +4,7 @@ Instructions for AI agents working on this repository. Humans are welcome to rea
 
 ## What this is
 
-Lemma is a language designed to be written by an AI. See [README.md](README.md) for the vision
+Lemma is a language written and read by AI. See [README.md](README.md) for the vision
 and [docs/design.md](docs/design.md) for the language design. Architecture decisions and their
 reasons live in [docs/adr/](docs/adr/): read them before changing anything they cover.
 
