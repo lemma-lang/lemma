@@ -22,17 +22,17 @@ fmt-check:
     taplo fmt --check
 
 lint:
-    cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --locked --workspace --all-targets -- -D warnings
 
 test:
-    cargo nextest run --workspace
-    cargo test --workspace --doc
+    cargo nextest run --locked --workspace
+    cargo test --locked --workspace --doc
 
 doc:
-    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+    RUSTDOCFLAGS="-D warnings" cargo doc --locked --workspace --no-deps
 
 deny:
-    cargo deny check
+    cargo deny --locked check
 
 spell:
     typos
