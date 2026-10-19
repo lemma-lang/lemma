@@ -2,6 +2,8 @@
 
 - Status: accepted; thresholds confirmed as written and frozen
 - Date: 2026-10-19
+- Amended: 2026-10-19, one sentence added under "Runs" on calibration runs, approved by the user;
+  see ADR 0006
 
 ## Context
 
@@ -53,6 +55,9 @@ hypotheses are refuted, Lemma stops claiming them; the project does not stop for
   reported with the count of re-runs.
 - **Runs.** 10 independent runs per kernel per language: 70 per language, 210 in total.
   A pilot of 2 runs per kernel debugs the harness and is discarded.
+  Runs made under ADR 0006's calibration are not runs of this experiment: they use none of its
+  kernels, are made before the toolchain and the reference cards are frozen, are discarded, and
+  gate nothing.
 
 Why 10: a pooled rate over 70 runs has a 95 % confidence interval of about ±12 points at 50 %,
 narrow enough for the gates below. Per kernel, 10 runs only detect gross failures (±30 points),

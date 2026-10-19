@@ -56,6 +56,38 @@ int32_t linalg_dot(uint64_t n, const float *a, const float *b, float *result);  
 float   linalg_dot_unchecked(uint64_t n, const float *a, const float *b);
 ```
 
+## Who each surface is for
+
+Lemma is made by AI for AI ([ADR 0006](adr/0006-optimized-for-its-writer.md), proposed): every
+surface, the contract included, is optimized for the models that write and read it and for the
+compiler that answers them. That means familiar spellings without false friends, one canonical
+form per construct, no meaning carried by layout, redundancy only where the compiler checks it,
+and diagnostics that are structured records (kind, span, failed obligation, Z3 counterexample as
+concrete values, a repair when one is certain) rendered as text only afterwards.
+
+A proof shows that the impl matches the spec, never that the spec matches the intent: a wrong spec
+that verifies is a silent bug. Two mechanisms catch it. The contract (the signature, `eff`, `req`,
+`ens`, `spec` and `equiv`) is reviewed against the task by a model that did not write it, which
+sees the task and the contract, not the impl. And every spec is executable: the compiler evaluates
+it on concrete inputs with the proofs' semantics, so it is tested against known answers and edge
+cases, not only proven against the impl. The contract is never repaired automatically, and no
+permission is ever suggested.
+
+The equivalence clause names no relation: its sides are always the spec and the impl, and its
+content is the list of granted relaxations, always written, empty for exact equivalence:
+
+```
+  equiv allow(fp_reassoc, fp_contract)
+  equiv allow()
+```
+
+The surface of `examples/dot.lm` predates that decision and changes with the grammar: `;`
+comments, blocks delimited by indentation, aligned columns, the coined names `ld` and `hsum`, `*`
+in the spec against a prefix `add` in the impl, and `spec ≈ impl` all go. Whether the sum and
+range membership are spelled `Σ` and `∈` or `sum` and `in` is open, settled by a calibration run
+before the syntax is frozen (ASCII on a tie); the examples in this document use `Σ` and `∈` until
+then.
+
 ## Two levels of effects
 
 1. **Compute kernels**: static, proven effects with zero runtime cost. A `pure` function is trivially reversible.
@@ -97,7 +129,7 @@ Codegen never emits `fast`, `nnan`, `ninf`, `nsz` or `arcp` unless a permission 
 exists and is granted. `dot` must read:
 
 ```
-  equiv spec ≈ impl  allow(fp_reassoc, fp_contract)
+  equiv allow(fp_reassoc, fp_contract)
 ```
 
 ### `pure` with reference parameters is not `memory(none)`
