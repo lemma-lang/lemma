@@ -17,7 +17,7 @@ jobs:
   quick:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: taiki-e/install-action@v2
         with:
           tool: just,typos,taplo,ast-grep
@@ -31,7 +31,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: taiki-e/install-action@v2
@@ -59,7 +59,7 @@ jobs:
       - if: ${{ !matrix.enabled }}
         run: echo "Skipped while the repository is private."
       - if: matrix.enabled
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - if: matrix.enabled
         name: Install LLVM 22 and Z3
         run: |
@@ -87,7 +87,7 @@ jobs:
     if: github.ref == 'refs/heads/main' || !github.event.repository.private
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: brew install llvm@22 z3
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
@@ -99,5 +99,5 @@ jobs:
   deny:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
