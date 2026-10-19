@@ -7,3 +7,16 @@ script = """#!/bin/sh
 set -e
 cog verify --file $1
 """
+
+[git_hooks.pre-commit]
+script = """#!/bin/sh
+set -e
+cargo fmt --all --check
+typos
+"""
+
+[git_hooks.pre-push]
+script = """#!/bin/sh
+set -e
+just check
+"""
