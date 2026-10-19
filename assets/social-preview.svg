@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <rect width="1280" height="640" fill="#0E1020"/>
+  <g transform="translate(150 192) scale(1)">
+    <path d="M44 44 H118 V138 H212 V212 H44 Z" fill="#F2F3F8"/>
+    <rect x="138" y="54" width="64" height="64" rx="4" fill="#7C5CFF"/>
+  </g>
+  <text x="430" y="330" font-family="Menlo, monospace" font-weight="700" font-size="120" fill="#F2F3F8">lemma</text>
+  <text x="434" y="400" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#A9ADC6">Verified, fast code, written by AI.</text>
+</svg>
