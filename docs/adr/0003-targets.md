@@ -23,11 +23,8 @@ every pull request:
 | Host | Jobs |
 |---|---|
 | Linux x86-64 (Debian trixie container) | lint, test, doc |
-| Linux AArch64 (`ubuntu-24.04-arm`) | lint, test, doc |
+| Linux AArch64 (`ubuntu-24.04-arm`, Debian trixie container) | lint, test, doc |
 | macOS AArch64 (`macos-15`, Apple Silicon) | lint, test |
-
-The workflow still conditions the last two on the repository being public: made private again, the
-Linux AArch64 job would be skipped and the macOS job would run on `main` only.
 
 No job builds for RISC-V, Cortex-M or Wasm, and no job measures performance: shared, virtualized
 CI runners give timings too noisy to compare.
