@@ -1,0 +1,25 @@
+id: logic-in-test-rs
+language: rust
+severity: warning
+message: "Branch or loop in a test"
+note: "Several sets of values: a table of cases fed to one body; different assertions: distinct tests."
+files: ["**/tests.rs", "**/tests/**", "tests.rs", "tests/**"]
+utils:
+  test-attribute:
+    kind: attribute_item
+    regex: '^#\[((\w+::)*test|rstest|test_case)\b'
+rule:
+  any:
+    - kind: if_expression
+    - kind: match_expression
+    - kind: for_expression
+    - kind: while_expression
+    - kind: loop_expression
+  inside:
+    kind: function_item
+    stopBy: end
+    follows:
+      matches: test-attribute
+      stopBy:
+        not:
+          any: [{kind: attribute_item}, {kind: line_comment}, {kind: block_comment}]

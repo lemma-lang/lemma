@@ -2,3 +2,15 @@
 *.o
 *.ll
 .DS_Store
+
+# Agent orchestration: working memory, local to each clone, never committed.
+# No trailing slash: in a worktree these are symbolic links, not directories.
+/.claude/plans
+/.claude/state
+/.claude/reviews
+/.claude/diagnostics
+/.claude/security
+/.claude/proofs
+/.claude/perf
+/.claude/tmp
+/.claude/settings.local.json

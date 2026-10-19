@@ -1,0 +1,5 @@
+id: condition-chain-rs
+valid:
+  - "fn f() { if x == 1 { a(); } else if x == 2 { b(); } else { c(); } }"
+invalid:
+  - "fn f() { if x == 1 { a(); } else if x == 2 { b(); } else if x == 3 { c(); } }"

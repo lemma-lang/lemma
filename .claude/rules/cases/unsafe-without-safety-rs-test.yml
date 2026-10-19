@@ -1,0 +1,43 @@
+id: unsafe-without-safety-rs
+valid:
+  - |
+    fn f() {
+        // SAFETY: the pointer comes from a live allocation.
+        unsafe { g() };
+    }
+  - |
+    fn f() {
+        // SAFETY: the pointer comes from a live allocation.
+        let x = unsafe { g() };
+    }
+  - |
+    fn f() -> u8 {
+        // SAFETY: the pointer comes from a live allocation,
+        // and no other reference to it exists.
+        unsafe { g() }
+    }
+  - |
+    fn f() {
+        // SAFETY: the function pointer was produced by the JIT for this signature.
+        call(unsafe { g() });
+    }
+invalid:
+  - |
+    fn f() {
+        unsafe { g() };
+    }
+  - |
+    fn f() {
+        // load the value
+        let x = unsafe { g() };
+    }
+  - |
+    fn f() -> u8 {
+        unsafe { g() }
+    }
+  - |
+    fn f() {
+        // SAFETY: only covers the first block.
+        unsafe { g() };
+        unsafe { h() };
+    }

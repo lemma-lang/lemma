@@ -1,0 +1,37 @@
+id: comment-in-body-rs
+valid:
+  - |
+    // above
+    fn f() -> u8 {
+        1
+    }
+  - |
+    fn f() {
+        // SAFETY: the pointer comes from a live allocation,
+        // and no other reference to it exists.
+        unsafe { g() };
+    }
+  - |
+    impl S {
+        // above the method
+        fn m(&self) -> u8 {
+            1
+        }
+    }
+  - |
+    fn f() {
+        /// Documented nested item.
+        struct Local;
+    }
+invalid:
+  - |
+    fn f() -> u8 {
+        // in the body
+        1
+    }
+  - |
+    fn f() -> u8 {
+        let x = 1;
+        /* in the middle */
+        x
+    }

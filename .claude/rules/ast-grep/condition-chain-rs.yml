@@ -1,0 +1,13 @@
+id: condition-chain-rs
+language: rust
+severity: warning
+message: "Three or more branches on chained conditions (if, else if, else if)"
+note: "Same value compared to constants: an exhaustive match; heterogeneous conditions: guards at the top."
+rule:
+  kind: if_expression
+  not: {inside: {kind: else_clause}}
+  has:
+    kind: else_clause
+    has:
+      kind: if_expression
+      has: {kind: else_clause, has: {kind: if_expression}}

@@ -1,0 +1,8 @@
+# Shape rules for this repository's Rust code. Run by check.sh, which keeps
+# only the findings that fall on lines changed since a base.
+# Each rule has its known cases in cases/: `ast-grep test -c sgconfig.yml
+# --skip-snapshot-tests`. A badly written compound rule returns nothing,
+# silently; only a case it must catch proves that it bites.
+ruleDirs: [ast-grep]
+testConfigs:
+  - testDir: cases

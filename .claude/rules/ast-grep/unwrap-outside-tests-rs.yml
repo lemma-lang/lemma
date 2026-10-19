@@ -1,0 +1,15 @@
+# The same rule as clippy's unwrap_used / expect_used (denied in Cargo.toml),
+# checked on the changed lines without compiling. `expect` followed by `?` is
+# a parser-style method returning a Result, not Option/Result::expect.
+id: unwrap-outside-tests-rs
+language: rust
+severity: error
+message: "unwrap() or expect() outside a test file"
+note: "Return a structured error carrying a location; tests may unwrap (clippy.toml)."
+ignores: ["**/tests.rs", "**/tests/**", "**/fuzz/**", "tests.rs", "tests/**", "fuzz/**"]
+rule:
+  any:
+    - pattern: $RECV.unwrap()
+    - all:
+        - pattern: $RECV.expect($$$ARGS)
+        - not: {inside: {kind: try_expression}}

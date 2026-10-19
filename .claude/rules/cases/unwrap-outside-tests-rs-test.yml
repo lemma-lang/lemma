@@ -1,0 +1,9 @@
+id: unwrap-outside-tests-rs
+valid:
+  - "fn f(x: Option<u8>) -> u8 { x.unwrap_or(0) }"
+  - "fn f(x: Option<u8>) -> u8 { x.unwrap_or_else(|| 0) }"
+  - "fn f(p: &mut Parser) -> Result<(), Error> { p.expect(Token::Comma)?; Ok(()) }"
+invalid:
+  - "fn f(x: Option<u8>) -> u8 { x.unwrap() }"
+  - "fn f(x: Result<u8, E>) -> u8 { x.expect(\"present\") }"
+  - "fn f(s: &str) -> u8 { s.parse::<u8>().unwrap() }"

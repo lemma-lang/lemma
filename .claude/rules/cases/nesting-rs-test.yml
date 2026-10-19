@@ -1,0 +1,23 @@
+id: nesting-rs
+valid:
+  - "fn f() { if a { if b { g(); } } }"
+  - "fn f() { if a { g(); } else if b { h(); } else if c { i(); } }"
+  - "fn f() { if a { g(); } else if b { if c { h(); } } }"
+  - "fn f() { for x in y { match x { _ => {} } } }"
+  - |
+    fn f() {
+        if a {
+            g();
+        }
+        if b {
+            if c {
+                h();
+            }
+        }
+    }
+invalid:
+  - "fn f() { if a { if b { if c { g(); } } } }"
+  - "fn f() { for x in y { if a { match x { _ => {} } } } }"
+  - "fn f() { if a { g(); } else { while b { loop { h(); } } } }"
+  - "fn f() { match x { A => { for y in z { if y { g(); } } } _ => {} } }"
+  - "fn f() { if a { g(); } else if b { while c { if d { h(); } } } }"

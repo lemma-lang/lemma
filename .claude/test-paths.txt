@@ -1,0 +1,19 @@
+# What counts as a test for the guards (.claude/hooks/path-guard.sh).
+# These patterns REPLACE the guard's defaults, they do not extend them.
+# Without a "/", a pattern matches the file name anywhere; with one, the path
+# from the project root (a leading "*/" also matches at the root).
+
+# Unit tests: each module declares `#[cfg(test)] mod tests;`, which resolves to
+# tests.rs in the module's directory (src/tests.rs for lib.rs and main.rs,
+# src/foo/tests.rs for src/foo.rs), or to a tests/ directory if it grows.
+tests.rs
+*/tests/*
+
+# Integration tests: crates/*/tests/ (covered by */tests/* above).
+
+# Snapshot and golden files.
+*/snapshots/*
+*/testdata/*
+
+# Fuzz targets (cargo-fuzz layout, per crate or at the workspace root).
+*/fuzz/*

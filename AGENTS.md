@@ -48,7 +48,7 @@ All repository content is in English: code, comments, docs, commit messages.
 
 ### Documentation stays true
 
-- Every public item has a doc comment (`missing_docs` is denied).
+- Every public item has a doc comment (`missing_docs` is denied in `[workspace.lints]`).
 - Examples in doc comments are doc-tests: they run with `cargo test`, so they cannot rot.
 - A change that alters behavior described in `README.md`, `docs/design.md` or this file updates
   that file in the same commit.
@@ -60,13 +60,27 @@ Write code an agent can read in one pass:
 
 - Explicit, descriptive names. No abbreviations beyond the domain's own (`ssa`, `ir`, `smt`).
 - One way of doing each thing; follow the pattern already used nearby.
-- Keep related code together, with unit tests in the same file (`#[cfg(test)] mod tests`).
+- Keep related code together. Unit tests live in a sibling file: each module declares
+  `#[cfg(test)] mod tests;`, which resolves to `tests.rs` in the module's directory
+  (`src/tests.rs` for `lib.rs` and `main.rs`, `src/parser/tests.rs` for `src/parser.rs`).
+  Integration tests go in `crates/*/tests/`, snapshot and golden files in `snapshots/` or
+  `testdata/` directories.
 - Prefer simple, direct code over layers of abstraction. Do not split a function only to make it shorter.
 - Errors are structured values carrying a location and, for proofs, the Z3 counterexample.
-  Never `unwrap()` on user input.
-- `unsafe` only in `lemma-jit`, each block with a `// SAFETY:` comment.
+  No `unwrap()` or `expect()` outside tests (`clippy::unwrap_used` and `clippy::expect_used` are
+  denied; `clippy.toml` allows them in tests).
+- `unsafe` only in `lemma-jit`, each block with a `// SAFETY:` comment
+  (`clippy::undocumented_unsafe_blocks` is denied).
 
 ### Environment
 
 macOS needs `brew install llvm@22 z3`; paths are set in `.cargo/config.toml`.
 CI runs on Linux with LLVM 22 from apt.llvm.org (see `.gitlab-ci.yml`).
+
+## Agent orchestration
+
+Claude Code runs a chain of specialized subagents on this repository (ticket, plan, tests,
+implementation, review, proofs, performance, merge request), defined in `.claude/agents/` and
+held to their zones by the hooks in `.claude/hooks/`. The policy, the roles and the exit gate
+before every commit are described in [.claude/orchestration.md](.claude/orchestration.md),
+which `CLAUDE.md` imports. GitLab issue `#n` is ticket `LEM-n`.

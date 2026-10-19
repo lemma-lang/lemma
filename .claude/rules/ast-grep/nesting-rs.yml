@@ -1,0 +1,36 @@
+# Three levels of nested control flow (if, match, for, while, loop), the same
+# threshold as the original nesting rules. An `else if` is not a new level.
+id: nesting-rs
+language: rust
+severity: warning
+message: "Three levels of nested control flow"
+note: "Early return, let-else or `?`, and nothing else."
+utils:
+  control:
+    any:
+      - kind: if_expression
+      - kind: match_expression
+      - kind: for_expression
+      - kind: while_expression
+      - kind: loop_expression
+  body:
+    any:
+      - kind: block
+        inside: {any: [{matches: control}, {kind: else_clause}]}
+      - kind: match_block
+  second-level:
+    all:
+      - matches: control
+      - inside: {matches: body, stopBy: {kind: function_item}}
+rule:
+  all:
+    - matches: control
+    - not: {inside: {kind: else_clause}}
+    - inside:
+        matches: body
+        stopBy: {kind: function_item}
+        inside:
+          any:
+            - matches: second-level
+            - kind: else_clause
+              inside: {matches: second-level}

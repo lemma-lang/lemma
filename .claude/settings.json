@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/path-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/role-guard.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Write(.claude/plans/*)",
+      "Write(.claude/plans/**)",
+      "Edit(.claude/plans/*)",
+      "Edit(.claude/plans/**)",
+      "Write(.claude/security/**)",
+      "Edit(.claude/security/**)",
+      "Write(.claude/proofs/**)",
+      "Edit(.claude/proofs/**)",
+      "Write(.claude/perf/**)",
+      "Edit(.claude/perf/**)",
+      "Bash(glab issue view:*)",
+      "Bash(glab issue list:*)",
+      "Bash(glab ci lint:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.local)",
+      "Read(.env.*.local)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git checkout --force:*)",
+      "Bash(git config --global:*)",
+      "Bash(git config --system:*)"
+    ]
+  }
+}

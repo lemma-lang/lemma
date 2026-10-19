@@ -1,0 +1,25 @@
+# `// SAFETY:` must open the comment run right above the statement holding the
+# block (clippy's undocumented_unsafe_blocks, denied in Cargo.toml). In
+# `let x = unsafe { .. };` the comment is a sibling of the let, not of the block.
+id: unsafe-without-safety-rs
+language: rust
+severity: error
+message: "unsafe block without a preceding // SAFETY: comment"
+note: "State the invariant that makes the block sound, in a // SAFETY: comment right above it."
+utils:
+  comment:
+    any: [{kind: line_comment}, {kind: block_comment}]
+  documented:
+    follows:
+      matches: comment
+      regex: '^(//|/\*)\s*SAFETY:'
+      stopBy: {not: {matches: comment}}
+rule:
+  kind: unsafe_block
+  not:
+    any:
+      - matches: documented
+      - inside:
+          any: [{kind: let_declaration}, {kind: expression_statement}]
+          matches: documented
+          stopBy: {kind: block}

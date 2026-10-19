@@ -1,0 +1,39 @@
+id: logic-in-test-rs
+valid:
+  - |
+    #[test]
+    fn clean() {
+        assert_eq!(f(1), 2);
+    }
+  - |
+    fn helper(values: &[u8]) -> u8 {
+        let mut total = 0;
+        for v in values {
+            total += v;
+        }
+        total
+    }
+invalid:
+  - |
+    #[test]
+    fn loops() {
+        for i in 0..3 {
+            assert!(f(i));
+        }
+    }
+  - |
+    #[test]
+    #[should_panic]
+    fn branches() {
+        if x {
+            assert!(f(1));
+        }
+    }
+  - |
+    #[test]
+    fn matches_on_result() {
+        match f(1) {
+            Ok(v) => assert_eq!(v, 2),
+            Err(_) => panic!(),
+        }
+    }

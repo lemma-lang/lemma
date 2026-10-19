@@ -1,0 +1,21 @@
+# Doc comments and `// SAFETY:` justifications (with their continuation lines)
+# are not narration: the latter is required right above every unsafe block.
+id: comment-in-body-rs
+language: rust
+severity: warning
+message: "Comment in the body of a function"
+note: "Above the function, never in the body; if a fragment calls for a sentence, a name is missing."
+utils:
+  comment:
+    any: [{kind: line_comment}, {kind: block_comment}]
+  safety:
+    matches: comment
+    regex: '^(//|/\*)\s*SAFETY:'
+rule:
+  matches: comment
+  not:
+    any:
+      - regex: '^(///|//!|/\*\*|/\*!)'
+      - matches: safety
+      - follows: {matches: safety, stopBy: {not: {matches: comment}}}
+  inside: {kind: block, stopBy: end}
