@@ -2,8 +2,8 @@
 ; f32x4 = native width. 4 accumulators is a guess: the count is FMA latency × throughput, to be tuned per target.
 
 fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
-  eff  pure
-  req  n % 16 == 0
+  eff pure
+  req n % 16 == 0
   spec Σ(i<n) a[i]*b[i]
 
   impl
@@ -14,4 +14,4 @@ fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
       next c3 = fma c3 (ld.f32x4 a[i+12]) (ld.f32x4 b[i+12])
     ret hsum (add (add c0 c1) (add c2 c3))
 
-  equiv spec ≈ impl  allow(fp_reassoc, fp_contract)
+  equiv allow(fp_reassoc, fp_contract)
