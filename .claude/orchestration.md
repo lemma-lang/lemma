@@ -588,6 +588,14 @@ every step. Update it after the tests commit, after a coder pass, after a verdic
 It stays **local**, like the plan, the reviews and the reports: `.gitignore` covers them. None of
 this goes into a commit.
 
+**When you resume, compute before you trust.** A state file says what was true when it was
+written. `.claude/tools/status.sh` prints what is true now: branch and distance to `origin/main`,
+uncommitted changes, worktrees, open pull requests and their checks, the last CI run on `main`,
+and the "Where we are" line of each state file. `.claude/tools/ticket-graph.sh` lists the open
+tickets with no open blocker, from GitHub's "blocked by" relationships, those that unblock the
+most first; a blocker written only in an issue's prose does not show there, so the
+`ticket-reader` still reads the ticket you pick.
+
 ## Resuming a subagent or launching a fresh one
 
 An instance serves **one role for one ticket**, and `SendMessage` does not change the role.
@@ -619,7 +627,8 @@ context is polluted.
    `git branch --show-current`. If it is `main`, **stop**: launch the `ticket-brancher` first, or
    ask the user whether writing directly is intended.
 4. **Check between the `tester` and the `coder`: tests and specs are frozen.** After the coder's
-   pass:
+   pass, run `.claude/tools/frozen-check.sh <tests-commit>` (exit 0 frozen, 1 moved). It runs,
+   against the working tree and untracked files included:
    ```bash
    git diff --stat <tests-commit> -- <test paths>
    git diff <tests-commit> | grep -E '^-[[:space:]]*(#\[cfg\(test\)\]|mod tests;)'
