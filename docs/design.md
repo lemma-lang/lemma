@@ -58,7 +58,7 @@ float   linalg_dot_unchecked(uint64_t n, const float *a, const float *b);
 
 ## Who each surface is for
 
-Lemma is made by AI for AI ([ADR 0006](adr/0006-optimized-for-its-writer.md), proposed): every
+Lemma is made by AI for AI ([ADR 0006](adr/0006-optimized-for-its-writer.md)): every
 surface, the contract included, is optimized for the models that write and read it and for the
 compiler that answers them. That means familiar spellings without false friends, one canonical
 form per construct, no meaning carried by layout, redundancy only where the compiler checks it,
@@ -82,8 +82,8 @@ content is the list of granted relaxations, always written, empty for exact equi
 ```
 
 The surface of `examples/dot.lm` predates that decision and changes with the grammar: `;`
-comments, blocks delimited by indentation, aligned columns, the coined names `ld` and `hsum`, `*`
-in the spec against a prefix `add` in the impl, and `spec ≈ impl` all go. Whether the sum and
+comments, blocks delimited by indentation, aligned columns, the coined names `ld` and `hsum`,
+and `*` in the spec against a prefix `add` in the impl all go. Whether the sum and
 range membership are spelled `Σ` and `∈` or `sum` and `in` is open, settled by a calibration run
 before the syntax is frozen (ASCII on a tie); the examples in this document use `Σ` and `∈` until
 then.

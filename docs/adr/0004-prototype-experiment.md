@@ -2,7 +2,7 @@
 
 - Status: accepted; thresholds confirmed as written and frozen
 - Date: 2026-10-19
-- Amended: 2026-10-19, one sentence added under "Runs" on calibration runs, approved by the user;
+- Amended: 2026-10-19, one sentence added under "Runs" on calibration runs, approved by the maintainer;
   see ADR 0006
 
 ## Context
