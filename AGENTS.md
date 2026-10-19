@@ -22,16 +22,16 @@ reasons live in [docs/adr/](docs/adr/): read them before changing anything they 
 
 ## Commands
 
+The [`justfile`](justfile) is the single source of truth for commands; run `just` to list them.
+
 ```
-cargo fmt --all
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cargo doc --workspace --no-deps          # must build without warnings
-cargo deny check
-cog verify "<commit message>"            # check a commit message
+just check                   # everything CI runs: fmt, lint, test, doc, deny, spell, rules
+just fmt                     # format Rust and TOML
+just test                    # cargo nextest + doc-tests
+cog verify "<message>"       # check a commit message
 ```
 
-All of them must pass before a change is considered done. CI runs the same checks.
+`just check` must pass before a change is considered done. CI calls the same recipes.
 
 ## Rules
 
@@ -75,7 +75,8 @@ Write code an agent can read in one pass:
 ### Environment
 
 macOS needs `brew install llvm@22 z3`; paths are set in `.cargo/config.toml`.
-CI runs on Linux with LLVM 22 from apt.llvm.org (see `.gitlab-ci.yml`).
+CI runs on GitHub Actions (see `.github/workflows/ci.yml`): Linux in a Debian trixie container
+with LLVM 22 from apt.llvm.org, and macOS on Apple Silicon.
 
 ## Agent orchestration
 

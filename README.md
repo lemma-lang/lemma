@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-mark-dark.svg">
+    <img src="assets/logo-mark-light.svg" width="112" alt="Lemma logo">
+  </picture>
+</p>
+
 # Lemma
 
 A language designed to be written by an AI: low-level in control, high-level in semantics.
@@ -53,14 +60,42 @@ source ─► verify (Z3) ─► IR ─► in-memory JIT ─► spec vs impl tes
 Skeleton only: no crate implements its role yet.
 LLVM (`inkwell`) and Z3 are wired in, each checked by a linking test.
 
-Requirements (macOS):
+## Development
+
+Prerequisites (macOS, Apple Silicon):
 
 ```
-brew install llvm@22 z3
-cargo test
+brew install llvm@22 z3 just typos-cli taplo cargo-nextest cargo-llvm-cov ast-grep
+cargo install --locked cocogitto cargo-deny
+just setup                   # installs the git hooks
 ```
 
-`inkwell` 0.10 supports LLVM up to version 22. Homebrew paths are set in `.cargo/config.toml`.
+`inkwell` 0.10 supports LLVM up to version 22. Homebrew paths are set in `.cargo/config.toml`,
+and the Rust toolchain is pinned in `rust-toolchain.toml`.
+
+Every task goes through [`just`](justfile); `just` alone lists them.
+
+| Command | What it does |
+|---|---|
+| `just check` | Everything CI runs: format, lint, tests, docs, `cargo deny`, spelling, agent rules |
+| `just fmt` | Format Rust and TOML files |
+| `just test` | Tests with `cargo nextest`, then doc-tests |
+| `just cov` | Coverage report in `target/llvm-cov/html` |
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/), checked by cocogitto.
+The git hooks check the message on commit, formatting and spelling before commit, and run
+`just check` before push.
+
+## Working with AI agents
+
+Lemma is built by AI agents as much as for them. [`AGENTS.md`](AGENTS.md) holds the rules every
+agent follows. Claude Code runs a chain of specialized roles, defined in `.claude/agents/`:
+the main session dispatches them, failing tests are written and committed before any code,
+and every change passes an exit gate (full suite green, tests untouched, review) before it is
+committed. Besides the usual roles (planner, tester, coder, reviewer, committer…), three are
+specific to Lemma: `proof-engineer` (Z3 obligations and spec quality), `perf-engineer`
+(measurements on Apple Silicon) and `language-designer` (ADRs and scope).
+Hooks in `.claude/hooks/` keep each role inside its zone. Details: [.claude/orchestration.md](.claude/orchestration.md).
 
 ## License
 
