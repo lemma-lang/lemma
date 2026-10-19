@@ -15,6 +15,8 @@ The compiler proves they are equivalent before generating native code, like lemm
 Lemma targets performance-critical code that must be proven correct (control loops, kernels, signal
 processing, cryptography) and is callable from any language through the C ABI or WebAssembly.
 See [ADR 0002](docs/adr/0002-scope.md).
+Exported functions check their preconditions at the boundary and return a status; an `_unchecked`
+variant skips the checks for callers that guarantee them ([ADR 0005](docs/adr/0005-c-abi-boundary.md)).
 
 ```
 fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
@@ -22,7 +24,7 @@ fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
   req  n % 16 == 0
   spec Σ(i<n) a[i]*b[i]
   impl ...
-  equiv spec ≈ impl  allow(fp_reassoc)
+  equiv spec ≈ impl  allow(fp_reassoc, fp_contract)
 ```
 
 ## Principles
@@ -31,7 +33,7 @@ fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
 - **Types carry memory layout**: vector width, alignment, bounds (`i: u64 < n`).
 - **Explicit effects**: `pure`, `ro`, `wo`, disjoint regions. No alias analysis guesswork.
 - **Separate spec / impl**, equivalence proven by SMT (Z3).
-- **Nothing implicit**: floating-point reassociation, overflow and traps are opt-in.
+- **Nothing implicit**: floating-point reassociation and contraction, overflow and traps are opt-in.
 - **Hash-addressed functions**, keyed by their AST.
 - **Typed CPU resources**, like memory: cores, caches, vector units (see [docs/design.md](docs/design.md)).
 - **Two levels of effects**: static and free for compute kernels, runtime-reversible (Cordis paradigm) for hot-reloaded components.
