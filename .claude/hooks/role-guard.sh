@@ -77,6 +77,28 @@ Whatever must change in an issue goes through the ticket-writer."
   esac
 fi
 
+# Every role shares the main checkout, and only the ticket-brancher moves its
+# HEAD: a role that switches branch, stashes or hard-resets drags another
+# role's uncommitted work onto the wrong branch, or throws it away. A restore
+# of named files (git checkout <rev> -- <paths>) stays allowed.
+git_sub='(^|[;&|(`[:space:]])git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+--[a-z-]+(=[^[:space:]]+)?)*[[:space:]]+'
+if [ "$tool" = "Bash" ] && [ -n "$cmd" ] && [ "$role" != "ticket-brancher" ]; then
+  moves=0
+  printf '%s\n' "$code" | grep -Eq "${git_sub}(switch|rebase|merge|pull|cherry-pick|revert|bisect)([[:space:]]|\$)" && moves=1
+  printf '%s\n' "$code" | grep -Eq "${git_sub}stash([[:space:]]+(push|pop|apply|drop|clear|save|branch|create|store)([[:space:]]|\$)|[[:space:]]*(\$|[;&|)]))" && moves=1
+  printf '%s\n' "$code" | grep -Eq "${git_sub}reset([[:space:]][^;&|]*)?[[:space:]]--(hard|keep|merge|soft)([[:space:]]|\$)" && moves=1
+  if printf '%s\n' "$code" | grep -Eo "${git_sub}checkout([[:space:]][^;&|]*)?" \
+     | grep -Evq '[[:space:]]--([[:space:]]|$)'; then moves=1; fi
+  [ "$moves" -eq 0 ] || refuse \
+"Command refused: it moves HEAD or rewrites the shared working tree (git switch,
+git checkout <branch>, git stash, git reset --hard, rebase, merge, pull...),
+and you are $role.
+    $cmd
+Other roles may have uncommitted work in this checkout. Stay on the branch you
+were given; if the work needs another branch, say so in your report: the main
+session gives you a worktree (.claude/tools/worktree.sh)."
+fi
+
 # Commands that rewrite the tree (formatting, automatic fixes, dependency
 # edits) without naming a single path. Only the coder and the tester write
 # source; every other role observes, and a reviewer that runs `cargo fmt`,
