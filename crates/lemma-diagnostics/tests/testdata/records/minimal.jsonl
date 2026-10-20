@@ -1,0 +1,1 @@
+{"kind":"unexpected-token","class":"syntax","message":"a message","span":{"file":"case.lm","start":{"byte":4,"line":1,"column":5},"end":{"byte":9,"line":1,"column":10}}}

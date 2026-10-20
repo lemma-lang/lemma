@@ -1,0 +1,6 @@
+{"kind":"unexpected-token","class":"syntax","message":"a message","span":{"file":"B.lm","start":{"byte":9,"line":1,"column":10},"end":{"byte":10,"line":1,"column":11}}}
+{"kind":"unexpected-token","class":"syntax","message":"a message","span":{"file":"a.lm","start":{"byte":0,"line":1,"column":1},"end":{"byte":4,"line":1,"column":5}}}
+{"kind":"unexpected-token","class":"syntax","message":"a message","span":{"file":"a.lm","start":{"byte":2,"line":1,"column":3},"end":{"byte":3,"line":1,"column":4}}}
+{"kind":"unexpected-token","class":"syntax","message":"a message","span":{"file":"a.lm","start":{"byte":2,"line":1,"column":3},"end":{"byte":5,"line":1,"column":6}}}
+{"kind":"semicolon","class":"syntax","message":"a message","span":{"file":"a.lm","start":{"byte":7,"line":1,"column":8},"end":{"byte":8,"line":1,"column":9}}}
+{"kind":"unexpected-token","class":"syntax","message":"a message","span":{"file":"a.lm","start":{"byte":7,"line":1,"column":8},"end":{"byte":8,"line":1,"column":9}}}
