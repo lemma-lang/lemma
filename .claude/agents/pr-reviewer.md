@@ -24,7 +24,10 @@ form: `just check` (or one of its recipes: `just fmt-check`, `just lint`, `just 
 `cargo doc …` (also as `RUSTDOCFLAGS="-D warnings" cargo doc …`), `cargo deny check`,
 `taplo fmt --check`, `typos`, `cog check …`, `cog verify …`. Never `just fmt`, `--fix`,
 `--allow-dirty`, `--bless`, `typos -w`, nor any bypass or auto-confirm option (`--admin`, `--auto`,
-`--yes`, `--force`). One command per call, no chaining. **You push nothing, you modify no file in
+`--yes`, `--force`). One command per call, no chaining. When the branch is checked out in a
+worktree the main session names, aim at it with `git -C <worktree> …` and `just <worktree>/<recipe>`;
+for those two forms, a path that is not a registered worktree of this repository is refused.
+**You push nothing, you modify no file in
 the repository, you close no pull request, you rebase nothing.**
 
 **The merge is submitted to the user.** `gh pr merge` is in no `allow` list: the harness shows the

@@ -177,6 +177,44 @@ Run a single command per call." ;;
     *'$('*) refuse \
 "Command refused: only the substitution \"\$(cat <<'EOF' … EOF)\" is allowed, and you are $role." ;;
   esac
+  # A registered worktree of this repository is the same project checked out elsewhere:
+  # "git -C <worktree> …" and "just <worktree>/<recipe> …" are judged as the bare command.
+  worktree_of() { # $1 = path → its physical path when git lists it as a worktree, else nothing
+    local physical listed
+    [ -n "$1" ] || return 0
+    physical=$(cd -P -- "$cwd" 2>/dev/null && cd -P -- "$1" 2>/dev/null && pwd -P) || return 0
+    git -C "$cwd" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' \
+      | while IFS= read -r listed; do
+          [ "$(cd -P -- "$listed" 2>/dev/null && pwd -P)" = "$physical" ] && printf '%s' "$physical"
+        done
+  }
+  split_path() { # $1 = text starting with a path, plain or double-quoted → sets path_arg and rest_arg
+    case "$1" in
+      \"*) rest_arg=${1#\"}; path_arg=${rest_arg%%\"*}; rest_arg=${rest_arg#"$path_arg"}; rest_arg=${rest_arg#\"} ;;
+      *) path_arg=${1%%[[:space:]]*}; rest_arg=${1#"$path_arg"} ;;
+    esac
+  }
+  require_worktree() { # $1 = path; refuses unless it is a registered worktree
+    case "$1" in
+      *[[:cntrl:]]*) refuse "Command refused: a path with a control character, and you are $role." ;;
+    esac
+    [ -n "$(worktree_of "$1")" ] || refuse \
+"Command refused: \"$1\" is not a worktree of this repository (git worktree list), and you are $role.
+Run the command against the main checkout or a worktree the main session created."
+  }
+  case "$head_line" in
+    "git -C "*)
+      split_path "${head_line#git -C }"
+      require_worktree "$path_arg"
+      head_line="git$rest_arg" ;;
+    "just "*)
+      split_path "${head_line#just }"
+      case "$path_arg" in
+        */*)
+          require_worktree "${path_arg%/*}"
+          head_line="just ${path_arg##*/}$rest_arg" ;;
+      esac ;;
+  esac
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the
   # squash flag, not the "-s" inside "--state".
   padded=" $head_line "

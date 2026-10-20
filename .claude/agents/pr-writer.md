@@ -15,7 +15,8 @@ description, which closes the issue on merge.
 
 **What you cannot do, and this is not an instruction:** a guard only lets you run in the shell
 `gh pr view|list|create|edit|comment`, `gh api` GET requests on `repos/{owner}/{repo}/pulls/…` and
-`repos/{owner}/{repo}/issues/…`, and read-only `git` commands. **Merging, approving, closing,
+`repos/{owner}/{repo}/issues/…`, and read-only `git` commands, one per call, also as `git -C
+<worktree> …` on a registered worktree of this repository. **Merging, approving, closing,
 rebasing, pushing** are not open to you: these are decisions that belong to the user. `gh pr
 create` without `--head`, or with `--dry-run`, could push the branch: the guard refuses both. No
 `--web`, no `--editor`: the harness must see the text.
