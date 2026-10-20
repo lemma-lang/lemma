@@ -315,7 +315,7 @@ fi
 code_of() { # $1 = command
   printf '%s\n' "$1" | awk '{ print } /<</ { exit }' \
     | sed -E -e "s/([A-Za-z_][A-Za-z0-9_]*)=[\"']([^\"' ]*)[\"']/\\1=\\2/g" \
-             -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g'
+             -e "s/'[^']*'//g" -e 's/"[^"]*"//g'
 }
 code=$(code_of "$cmd")
 
@@ -365,16 +365,22 @@ if [ "$role" = "coder" ]; then
   # chevron, and every *read* command ending in `2>&1` and mentioning a
   # test path was refused: running a test file, displaying it, searching
   # it. We strip them before examination, the real redirection to a file
-  # (`> f`, `>> f`, `&> f`) remaining intact. Same for `> /dev/null`, and, in
-  # the whole command only, for Rust's `->` and `=>`, which a quoted search for a
-  # signature or a match arm carries without writing anything.
+  # (`> f`, `>> f`, `&> f`) remaining intact. Same for `> /dev/null`, and for
+  # Rust's `->` and `=>` when every one of them sits in quotes, as in a search
+  # for a signature or a match arm.
   # The write token is looked for in the code part only (a ">" inside a grep
-  # pattern writes nothing); the target, in the whole command, since a path
+  # pattern writes nothing), with each quoted string left as a placeholder so that
+  # `>&2"file"` stays a write; the target, in the whole command, since a path
   # written to can be quoted.
   # Only `>&` followed by a descriptor or `-` duplicates; `>&word` writes the file word.
   strip_dups() { sed -E -e 's/[0-9]*>&([0-9]+|-)([[:space:];&|<>()]|$)/\2/g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g'; }
-  cmd_examined=$(printf '%s' "$cmd" | strip_dups | sed -e 's/->//g' -e 's/=>//g')
-  code_examined=$(printf '%s' "$code" | strip_dups)
+  cmd_examined=$(printf '%s' "$cmd" | strip_dups)
+  case "$code" in
+    *'->'*|*'=>'*) ;;
+    *) cmd_examined=$(printf '%s' "$cmd_examined" | sed -e 's/->//g' -e 's/=>//g') ;;
+  esac
+  code_examined=$(printf '%s\n' "$cmd" | awk '{ print } /<</ { exit }' \
+    | sed -E -e "s/''//g" -e 's/""//g' -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g' | strip_dups)
   case "$code_examined" in
     *sed\ -i*|*tee\ *|*\>*|*mv\ *|*cp\ *|*rm\ *|*truncate*|*patch\ *)
       # The plan must remain *readable* by the coder — the role tells it to
