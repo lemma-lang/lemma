@@ -307,16 +307,78 @@ fi
 [ "$tool" = "Bash" ] && [ -n "$cmd" ] || exit 0
 
 # The lines the shell runs as commands: each heredoc body is dropped up to its
-# terminator, and the lines after it are kept. A heredoc never terminated keeps
-# its lines, so that a `<<` the scan mistakes for one hides nothing.
+# terminator, and the lines after it are kept. The scan follows quotes across
+# lines, `$(...)` inside double quotes, arithmetic, `${...}` and comments; a
+# `<<` it cannot read as a heredoc, or a heredoc never terminated, keeps its
+# lines, so that a doubt shows more to the checks, never less.
 outside_heredocs() { # stdin = command → stdout
   awk '
-    function delimiter(op,   word) {
-      word = op
-      sub(/^<<-?[ \t]*/, "", word)
-      if (word ~ /^["\047]/) return substr(word, 2, length(word) - 2)
-      sub(/^\\/, "", word)
+    BEGIN { depth = 1; context[1] = "code" }
+    function closing(text, start, opening, ending,   level, k, ch) {
+      level = 0
+      for (k = start; k <= length(text); k++) {
+        ch = substr(text, k, 1)
+        if (ch == opening) level++
+        else if (ch == ending && --level == 0) return k
+      }
+      return 0
+    }
+    function delimiter(text, k,   word, ch, end) {
+      word = ""; unreadable = 0
+      while (k <= length(text)) {
+        ch = substr(text, k, 1)
+        if (ch == "\047") {
+          end = index(substr(text, k + 1), "\047")
+          if (!end) { unreadable = 1; return "" }
+          word = word substr(text, k + 1, end - 1); k += end + 1; continue
+        }
+        if (ch == "\"") {
+          end = index(substr(text, k + 1), "\"")
+          if (!end || substr(text, k + 1, end - 1) ~ /[\\$`]/) { unreadable = 1; return "" }
+          word = word substr(text, k + 1, end - 1); k += end + 1; continue
+        }
+        if (ch == "\\") { word = word substr(text, k + 1, 1); k += 2; continue }
+        if (ch ~ /[ \t;&|()<>]/) break
+        if (ch ~ /[$`]/) { unreadable = 1; return "" }
+        word = word ch; k++
+      }
+      after = k
       return word
+    }
+    function scan(text,   k, ch, top, end, word, tabs) {
+      k = 1
+      while (k <= length(text)) {
+        ch = substr(text, k, 1); top = context[depth]
+        if (top == "single") { if (ch == "\047") depth--; k++; continue }
+        if (top == "double") {
+          if (ch == "\\") { k += 2; continue }
+          if (ch == "\"") { depth--; k++; continue }
+          if (substr(text, k, 2) == "$(" && substr(text, k, 3) != "$((") { context[++depth] = "code"; k += 2; continue }
+          k++; continue
+        }
+        if (ch == "\\") { k += 2; continue }
+        if (ch == "\047") { context[++depth] = "single"; k++; continue }
+        if (ch == "\"") { context[++depth] = "double"; k++; continue }
+        if (ch == "#" && (k == 1 || substr(text, k - 1, 1) ~ /[ \t;&|()<>]/)) return
+        if (substr(text, k, 2) == "((" || substr(text, k, 3) == "$((") {
+          end = closing(text, k, "(", ")"); if (!end) return
+          k = end + 1; continue
+        }
+        if (substr(text, k, 2) == "$[") { end = closing(text, k + 1, "[", "]"); if (!end) return; k = end + 1; continue }
+        if (substr(text, k, 2) == "${") { end = closing(text, k + 1, "{", "}"); if (!end) return; k = end + 1; continue }
+        if (ch == "(") { context[++depth] = "code"; k++; continue }
+        if (ch == ")") { if (depth > 1) depth--; k++; continue }
+        if (substr(text, k, 3) == "<<<") { k += 3; continue }
+        if (substr(text, k, 2) == "<<") {
+          k += 2; tabs = 0
+          if (substr(text, k, 1) == "-") { tabs = 1; k++ }
+          while (substr(text, k, 1) ~ /[ \t]/) k++
+          word = delimiter(text, k)
+          if (unreadable || word == "") continue
+          wanted[++pending] = word; strip_tabs[pending] = tabs; k = after; continue
+        }
+        k++
+      }
     }
     pending {
       held[++held_count] = $0
@@ -325,22 +387,7 @@ outside_heredocs() { # stdin = command → stdout
       if (line == wanted[current] && ++current > pending) { pending = 0; held_count = 0 }
       next
     }
-    /^[ \t]*\)[ \t]*"?[ \t]*$/ { next }
-    {
-      print
-      rest = $0
-      gsub(/<<</, "", rest)
-      gsub(/\(\([^)]*\)\)/, "", rest)
-      current = 1
-      while (match(rest, /<<-?[ \t]*("[^"]*"|\047[^\047]*\047|\\?[A-Za-z0-9_.@%+:,=-]+)|\047[^\047]*\047|"[^"]*"|(^|[ \t;&|(])#/)) {
-        token = substr(rest, RSTART, RLENGTH)
-        rest = substr(rest, RSTART + RLENGTH)
-        if (token ~ /#$/) break
-        if (substr(token, 1, 2) != "<<") continue
-        wanted[++pending] = delimiter(token)
-        strip_tabs[pending] = (token ~ /^<<-/)
-      }
-    }
+    { print; current = 1; scan($0) }
     END { for (i = 1; i <= held_count; i++) print held[i] }
   '
 }
