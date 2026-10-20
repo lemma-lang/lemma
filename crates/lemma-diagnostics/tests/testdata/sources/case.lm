@@ -1,0 +1,10 @@
+fn f(n: u64, k: u64) -> u64
+	let x: u64 = n + 1
+  eff pure
+
+  return x  	
+  a
+  b
+  c
+  d
+  next value = x

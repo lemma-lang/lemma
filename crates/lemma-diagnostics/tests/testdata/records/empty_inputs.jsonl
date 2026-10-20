@@ -1,0 +1,1 @@
+{"kind":"bound-unproven","class":"bound-proof","message":"a message","span":{"file":"case.lm","start":{"byte":4,"line":1,"column":5},"end":{"byte":9,"line":1,"column":10}},"obligation":{"about":"the divisor `0` is not zero","assumes":["n % 4 == 0"]},"counterexample":{"inputs":[]}}

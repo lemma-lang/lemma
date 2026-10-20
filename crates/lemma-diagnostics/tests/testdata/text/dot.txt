@@ -1,0 +1,9 @@
+error[bound-unproven]: the load `f32x4.load(a, i + 12)` may read past the end of `a`
+  --> dot.lm:17:21
+   |
+17 |       next c3 = fma(f32x4.load(a, i + 12), f32x4.load(b, i + 12), c3)
+   |                     ^^^^^^^^^^^^^^^^^^^^^
+   = related: dot.lm:4:3-4:17: the clause the obligation assumes
+   = obligation: the bound of `f32x4.load(a, i + 12)`: `i + 12 + 4 <= n`
+   = assumes: n % 4 == 0
+   = counterexample: n = 12, i = 0

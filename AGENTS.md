@@ -12,6 +12,7 @@ reasons live in [docs/adr/](docs/adr/): read them before changing anything they 
 
 | Path | Content |
 |---|---|
+| `crates/lemma-diagnostics` | Diagnostic records, their JSON and text renderings |
 | `crates/lemma-syntax` | Lexer, parser, AST |
 | `crates/lemma-verify` | Type checking, proofs (Z3) |
 | `crates/lemma-codegen` | LLVM IR emission (inkwell, LLVM 22) |

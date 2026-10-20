@@ -1,0 +1,10 @@
+error[equivalence-unproven]: a message
+ --> case.lm:1:4
+  |
+1 | fn f(n: u64, k: u64) -> u64
+  |    ^
+  = obligation: the impl computes the spec
+  = assumes: n > 0
+  = counterexample: n = 3
+  = spec: 1.0
+  = impl: 0.5

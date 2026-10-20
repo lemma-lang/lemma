@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+ --> invalid.lm:1:3
+  |
+1 | a�b
+  |   ^

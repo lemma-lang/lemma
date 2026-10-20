@@ -61,6 +61,7 @@ source ─► verify (Z3) ─► IR ─► in-memory JIT ─► spec vs impl tes
 | Crate | Role |
 |---|---|
 | `lemma-syntax` | Lexer, parser, AST |
+| `lemma-diagnostics` | Diagnostic records and their two renderings |
 | `lemma-verify` | Type checking, bounds and equivalence proofs (Z3) |
 | `lemma-codegen` | LLVM IR emission (`noalias` metadata, alignment) |
 | `lemma-jit` | In-memory JIT daemon, hot replacement, performance counters |

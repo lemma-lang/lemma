@@ -1,0 +1,8 @@
+error[solver-unknown]: a message
+ --> case.lm:1:4
+  |
+1 | fn f(n: u64, k: u64) -> u64
+  |    ^
+  = obligation: the bound of `k`
+  = assumes: n % 4 == 0
+  = assumes: k < n

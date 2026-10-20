@@ -73,7 +73,8 @@ surface, the contract included, is optimized for the models that write and read 
 compiler that answers them. That means familiar spellings without false friends, one canonical
 form per construct, no meaning carried by layout, redundancy only where the compiler checks it,
 and diagnostics that are structured records (kind, span, failed obligation, Z3 counterexample as
-concrete values, a repair when one is certain) rendered as text only afterwards.
+concrete values, a repair when one is certain) rendered as text only afterwards (see
+[Diagnostics](#diagnostics) below).
 
 A proof shows that the impl matches the spec, never that the spec matches the intent: a wrong spec
 that verifies is a silent bug. Two mechanisms catch it. The contract (the signature, `eff`, `req`,
@@ -147,6 +148,31 @@ What a reader needs to read it:
   vector type they produce; `reduce_sum` adds a vector's lanes.
 - A loop's carries are its state: inside the body a carry is its value at the start of the
   iteration, `next` gives the following one, and after the loop the name holds the final value.
+
+## Diagnostics
+
+`lemma check` answers with records, whose format, two renderings and closed list of kinds are in
+[docs/diagnostics.md](diagnostics.md) ([ADR 0009](adr/0009-diagnostic-records.md)). A record has a
+kind, which fixes its ADR 0004 failure class; a span with byte offsets, 1-based lines and 1-based
+columns counted in code points; related spans; a one-line message; for a proof, the obligation
+and a counterexample; and, when the fix is certain, a repair: a list of edits applied together,
+which on the contract changes no meaning. In the text rendering, for a `req` that states a bound
+the parameter's type should carry:
+
+```
+error[bound-in-clause]: the clause `req k < n` states a bound, which belongs in the type of `k`
+ --> pick.lm:3:3
+  |
+3 |   req k < n
+  |   ^^^^^^^^^
+  = related: pick.lm:1:24-1:25: the parameter the bound belongs to
+  = repair: replace pick.lm:1:30-1:30 with " < n"
+  = repair: replace pick.lm:3:1-4:1 with ""
+```
+
+The two edits are one repair: `k: u64` becomes `k: u64 < n` and the clause goes, so the
+precondition is unchanged. A solver `unknown` or timeout is a kind of its own (`solver-unknown`),
+never a failure with a counterexample nor a success.
 
 ## Two levels of effects
 

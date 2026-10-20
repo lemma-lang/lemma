@@ -1,0 +1,1 @@
+{"kind":"solver-unknown","class":"solver-timeout","message":"a message","span":{"file":"case.lm","start":{"byte":4,"line":1,"column":5},"end":{"byte":9,"line":1,"column":10}},"obligation":{"about":"the bound of `a[k]`: `k < n`","assumes":["n % 4 == 0","k < n"]}}

@@ -1,0 +1,7 @@
+error[bound-unproven]: a message
+ --> case.lm:1:4
+  |
+1 | fn f(n: u64, k: u64) -> u64
+  |    ^
+  = obligation: the bound of `k`
+  = counterexample: n = 12, k = 12

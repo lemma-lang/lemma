@@ -4,6 +4,8 @@
 - Date: 2026-10-19
 - Amended: 2026-10-20, one sentence added under C1 extending it to the universal quantifier,
   approved by the maintainer; see ADR 0008
+- Amended: 2026-10-20, one sentence added under P5 making a repair a list of edits, decided by the
+  maintainer; see ADR 0009
 
 ## Context
 
@@ -172,6 +174,8 @@ record, from which a text rendering is derived, never the reverse. A record has:
 - `repair`, optional: an edit (a span and its replacement text) when the compiler knows the fix
   for certain, such as a canonical spelling or a missing delimiter. Never a guess, and never on the
   contract (see "What this does not license").
+  A repair is a list of one or more non-overlapping edits applied together, all or none, certain as
+  a whole, and on the contract the list as a whole changes no meaning (ADR 0009).
 
 A solver `unknown` or timeout is a kind of its own, never rendered as a failure with a
 counterexample nor as a success. The output is deterministic (the same input gives the same bytes,

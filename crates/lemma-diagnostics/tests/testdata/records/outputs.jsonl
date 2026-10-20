@@ -1,0 +1,1 @@
+{"kind":"equivalence-unproven","class":"equivalence-proof","message":"a message","span":{"file":"case.lm","start":{"byte":4,"line":1,"column":5},"end":{"byte":9,"line":1,"column":10}},"obligation":{"about":"the impl computes the spec","assumes":["n > 0"]},"counterexample":{"inputs":[{"name":"x","value":"0.5"}],"outputs":{"spec":"1.0","impl":"0.5"}}}

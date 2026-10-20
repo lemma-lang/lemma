@@ -482,9 +482,12 @@ parameter or its elements), assumed in the body and checked at the C boundary, o
 ## 7. Syntax diagnostics
 
 The closed list of kinds the lexer and the parser emit. All belong to ADR 0004's **syntax** class.
-A repair is offered only when exactly one edit makes the text what the writer evidently meant; on
-the contract, only when the edit changes no meaning (a spelling, a delimiter). Kinds whose repair
-depends on a condition give it.
+A repair is a list of edits applied together, most often one
+([`docs/diagnostics.md`](diagnostics.md), section 3). It is offered only when exactly one repair
+makes the text what the writer evidently meant; on the contract, only when the repair as a whole
+changes no meaning (a spelling, a delimiter, a bound moved to where it means the same). Kinds whose
+repair depends on a condition give it. The record these kinds are reported in, its two renderings,
+and the kinds of the verifier and the toolchain are in [`docs/diagnostics.md`](diagnostics.md).
 
 **Recovery.** A diagnostic with a repair is reported, and parsing continues as if the repair had
 been applied, so independent slips are all reported in one round. The first diagnostic without a
@@ -509,7 +512,7 @@ only follows from an earlier one (P5).
 | `assignment-in-expression` | `=` inside an expression (`req n % 16 = 0`) | `==` |
 | `path-separator` | `::` | `.` |
 | `range-operator` | `..`, `...`, `..=`, `…`: inclusive in some languages, exclusive in others | none: the range is `lo..<hi`, and the writer must say which bound was meant |
-| `unexpected-token` | any other token the grammar does not allow there; the record lists the expected tokens | none |
+| `unexpected-token` | any other token the grammar does not allow there; the message lists the expected tokens ([`docs/diagnostics.md`](diagnostics.md), section 7) | none |
 | `unclosed-delimiter` | a `(` or `[` still open at a token that cannot occur inside it (a clause or statement keyword, `fn`, `export`, end of input); a `{` still open at `fn`, `export` or end of input | `)` or `]` inserted before that token, when exactly one delimiter is open; none for `{` |
 | `unmatched-delimiter` | a closing delimiter with no opener, or the wrong closer | none |
 | `trailing-comma` | a comma that ends a list: before `)`, or after the last effect of an `eff` list | delete it |
