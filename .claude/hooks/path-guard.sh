@@ -372,7 +372,12 @@ if [ "$role" = "coder" ]; then
   # pattern writes nothing); the target, in the whole command, since a path
   # written to can be quoted.
   strip_reads() { sed -e 's/[0-9]*>&[0-9-]*//g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g'; }
-  cmd_examined=$(printf '%s' "$cmd" | strip_reads)
+  # A setup script in command position is run, not written (the coder runs check.sh
+  # before handing in); dropping its name leaves a real write into .claude/ in view.
+  strip_runs() {
+    sed -E 's#(^|[;&|(][[:space:]]*)(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*)("?[^[:space:];&|()"]*/)?\.claude/(rules|tools|hooks/tests)/[A-Za-z0-9_.-]+\.sh"?#\1\2#g'
+  }
+  cmd_examined=$(printf '%s' "$cmd" | strip_reads | strip_runs)
   code_examined=$(printf '%s' "$code" | strip_reads)
   case "$code_examined" in
     *sed\ -i*|*tee\ *|*\>*|*mv\ *|*cp\ *|*rm\ *|*truncate*|*patch\ *)
