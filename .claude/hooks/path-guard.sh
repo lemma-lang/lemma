@@ -306,89 +306,38 @@ fi
 
 [ "$tool" = "Bash" ] && [ -n "$cmd" ] || exit 0
 
-# The lines the shell runs as commands: each heredoc body is dropped up to its
-# terminator, and the lines after it are kept. The scan follows quotes across
-# lines, `$(...)` inside double quotes, arithmetic, `${...}` and comments; a
-# `<<` it cannot read as a heredoc, or a heredoc never terminated, keeps its
-# lines, so that a doubt shows more to the checks, never less.
+# The lines the shell runs as commands. A heredoc body is dropped only in the
+# shape the roles use, where bash and this check cannot read the command
+# differently: a single heredoc opened at the end of the first line, that line
+# holding plain words and simple quotes only, its terminator closing the
+# command (or followed by the `)"` of `"$(cat <<'EOF'`); with an unquoted
+# delimiter, the body holds no `$`, backquote or backslash, which bash would
+# expand and could run. Any other shape keeps every line, so that a doubt
+# costs a refusal, never a hidden command.
 outside_heredocs() { # stdin = command → stdout
   awk '
-    BEGIN { depth = 1; context[1] = "code" }
-    function closing(text, start, opening, ending,   level, k, ch) {
-      level = 0
-      for (k = start; k <= length(text); k++) {
-        ch = substr(text, k, 1)
-        if (ch == opening) level++
-        else if (ch == ending && --level == 0) return k
+    { lines[NR] = $0 }
+    END {
+      head = lines[1]; closer = ""
+      if (match(head, /[ \t]"\$\(cat <<(\047[A-Za-z_]+\047|[A-Za-z_]+)$/)) {
+        prefix = substr(head, 1, RSTART - 1); word = substr(head, RSTART + 10); closer = ")\""
+      } else if (match(head, /[ \t]<<(\047[A-Za-z_]+\047|"[A-Za-z_]+"|[A-Za-z_]+)$/)) {
+        prefix = substr(head, 1, RSTART - 1); word = substr(head, RSTART + 3)
+      } else word = ""
+      expands = (word != "" && word !~ /["\047]/)
+      gsub(/["\047]/, "", word)
+      plain = (word != "" && prefix ~ /^([A-Za-z0-9 \t_.\/:=@%+,{}|&;>-]|\047[^\047]*\047|"[^"$`\\]*")*$/)
+      terminator = 0
+      for (i = 2; plain && i <= NR && !terminator; i++) {
+        if (lines[i] == word) terminator = i
+        else if (expands && lines[i] ~ /[$`\\]/) plain = 0
       }
-      return 0
-    }
-    function delimiter(text, k,   word, ch, end) {
-      word = ""; unreadable = 0
-      while (k <= length(text)) {
-        ch = substr(text, k, 1)
-        if (ch == "\047") {
-          end = index(substr(text, k + 1), "\047")
-          if (!end) { unreadable = 1; return "" }
-          word = word substr(text, k + 1, end - 1); k += end + 1; continue
-        }
-        if (ch == "\"") {
-          end = index(substr(text, k + 1), "\"")
-          if (!end || substr(text, k + 1, end - 1) ~ /[\\$`]/) { unreadable = 1; return "" }
-          word = word substr(text, k + 1, end - 1); k += end + 1; continue
-        }
-        if (ch == "\\") { word = word substr(text, k + 1, 1); k += 2; continue }
-        if (ch ~ /[ \t;&|()<>]/) break
-        if (ch ~ /[$`]/) { unreadable = 1; return "" }
-        word = word ch; k++
+      if (plain && terminator && (closer == "" ? terminator == NR : terminator == NR - 1 && lines[NR] == closer)) {
+        print head
+        exit
       }
-      after = k
-      return word
+      for (i = 1; i <= NR; i++) print lines[i]
     }
-    function scan(text,   k, ch, top, end, word, tabs) {
-      k = 1
-      while (k <= length(text)) {
-        ch = substr(text, k, 1); top = context[depth]
-        if (top == "single") { if (ch == "\047") depth--; k++; continue }
-        if (top == "double") {
-          if (ch == "\\") { k += 2; continue }
-          if (ch == "\"") { depth--; k++; continue }
-          if (substr(text, k, 2) == "$(" && substr(text, k, 3) != "$((") { context[++depth] = "code"; k += 2; continue }
-          k++; continue
-        }
-        if (ch == "\\") { k += 2; continue }
-        if (ch == "\047") { context[++depth] = "single"; k++; continue }
-        if (ch == "\"") { context[++depth] = "double"; k++; continue }
-        if (ch == "#" && (k == 1 || substr(text, k - 1, 1) ~ /[ \t;&|()<>]/)) return
-        if (substr(text, k, 2) == "((" || substr(text, k, 3) == "$((") {
-          end = closing(text, k, "(", ")"); if (!end) return
-          k = end + 1; continue
-        }
-        if (substr(text, k, 2) == "$[") { end = closing(text, k + 1, "[", "]"); if (!end) return; k = end + 1; continue }
-        if (substr(text, k, 2) == "${") { end = closing(text, k + 1, "{", "}"); if (!end) return; k = end + 1; continue }
-        if (ch == "(") { context[++depth] = "code"; k++; continue }
-        if (ch == ")") { if (depth > 1) depth--; k++; continue }
-        if (substr(text, k, 3) == "<<<") { k += 3; continue }
-        if (substr(text, k, 2) == "<<") {
-          k += 2; tabs = 0
-          if (substr(text, k, 1) == "-") { tabs = 1; k++ }
-          while (substr(text, k, 1) ~ /[ \t]/) k++
-          word = delimiter(text, k)
-          if (unreadable || word == "") continue
-          wanted[++pending] = word; strip_tabs[pending] = tabs; k = after; continue
-        }
-        k++
-      }
-    }
-    pending {
-      held[++held_count] = $0
-      line = $0
-      if (strip_tabs[current]) sub(/^\t+/, "", line)
-      if (line == wanted[current] && ++current > pending) { pending = 0; held_count = 0 }
-      next
-    }
-    { print; current = 1; scan($0) }
-    END { for (i = 1; i <= held_count; i++) print held[i] }
   '
 }
 

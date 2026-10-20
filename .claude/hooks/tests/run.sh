@@ -273,6 +273,13 @@ case_ deny  coder  Bash $'echo $[1<<X]\necho x > crates/lemma-syntax/src/tests.r
 case_ deny  coder  Bash $'(true)#<<X\necho x > crates/lemma-syntax/src/tests.rs\nX'
 case_ deny  coder  Bash $'echo \"a\n<<X\n\"\necho x > crates/lemma-syntax/src/tests.rs\nX'
 case_ deny  coder  Bash $'git commit -m \"$(cat <<\'EOF\'\nx\nEOF\n)\"\necho x > crates/lemma-syntax/src/tests.rs'
+case_ deny  coder  Bash $'echo $\'\\\' <<X \'\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'cat <<E\\\nOF\nEOF\necho x > crates/lemma-syntax/src/tests.rs\nE'
+case_ deny  coder  Bash $'echo ${x:-\"}\"}\necho \"<<X \"\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo \"$(case x in a) echo \"<<X \";; esac)\"\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'cat <<X\nX\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'cat <<EOF\n$(echo x > crates/lemma-syntax/src/tests.rs)\nEOF'
+case_ allow coder  Bash $'cat <<\'EOF\'\n$(echo x > crates/lemma-syntax/src/tests.rs)\nEOF'
 case_ allow coder  Bash $'cat <<EOF\ncargo insta accept\nEOF'
 case_ allow committer Bash $'git commit -m "$(cat <<\'EOF\'\nstyle: apply cargo fmt\nEOF\n)"'
 
