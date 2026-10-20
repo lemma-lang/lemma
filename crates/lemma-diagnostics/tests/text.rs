@@ -273,6 +273,42 @@ fn golden_cases() -> Vec<(
             include_str!("testdata/text/invalid_utf8.txt"),
         ),
         (
+            "lone continuation byte in the source line",
+            vec![record_at(
+                Kind::UnexpectedToken,
+                span_in("lone_continuation.lm", (2, 1, 2), (3, 1, 3)),
+            )],
+            vec![Source {
+                name: "lone_continuation.lm",
+                text: include_bytes!("testdata/sources/lone_continuation.lm"),
+            }],
+            include_str!("testdata/text/lone_continuation.txt"),
+        ),
+        (
+            "tab after a lone continuation byte",
+            vec![record_at(
+                Kind::UnexpectedToken,
+                span_in("continuation_then_tab.lm", (2, 1, 2), (3, 1, 3)),
+            )],
+            vec![Source {
+                name: "continuation_then_tab.lm",
+                text: include_bytes!("testdata/sources/continuation_then_tab.lm"),
+            }],
+            include_str!("testdata/text/continuation_then_tab.txt"),
+        ),
+        (
+            "encoded surrogate in the source line",
+            vec![record_at(
+                Kind::UnexpectedToken,
+                span_in("surrogate.lm", (4, 1, 3), (5, 1, 4)),
+            )],
+            vec![Source {
+                name: "surrogate.lm",
+                text: include_bytes!("testdata/sources/surrogate.lm"),
+            }],
+            include_str!("testdata/text/surrogate.txt"),
+        ),
+        (
             "control characters in strings and in a replacement",
             vec![Diagnostic {
                 message: "quote \" backslash \\ lf \n tab \t soh \u{1} del \u{7f}".to_string(),

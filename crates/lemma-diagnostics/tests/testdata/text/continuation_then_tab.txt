@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+ --> continuation_then_tab.lm:1:2
+  |
+1 | 	b
+  | 	^

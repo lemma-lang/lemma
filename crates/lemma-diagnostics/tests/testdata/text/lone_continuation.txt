@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+ --> lone_continuation.lm:1:2
+  |
+1 | ab
+  |  ^
