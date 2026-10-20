@@ -230,6 +230,11 @@ Run the command against the main checkout or a worktree the main session created
 "Command refused: no pipe, &, redirection, backslash, \$ or control character, and you are $role.
 Run the read alone; its whole output comes back to you." ;;
   esac
+  # An unquoted glob is expanded by the shell after this guard has judged the line.
+  case "$(printf '%s' "$plain_line" | sed -E "s/'[^']*'|\"[^\"]*\"//g")" in
+    *'*'*|*'?'*|*'['*|*"'"*|*'"'*) refuse \
+"Command refused: an unquoted glob or an unbalanced quote, and you are $role. Quote the pattern." ;;
+  esac
   # git and cargo see the words with their quotes removed: judge that text, not the quoted one.
   bare_line=$(printf '%s' "$plain_line" | tr -d "\"'")
   case "$bare_line" in
@@ -237,9 +242,13 @@ Run the read alone; its whole output comes back to you." ;;
       printf '%s' "$bare_line" | grep -Eq '^just [A-Za-z0-9_-]+$' || refuse \
 "Command refused: just runs every recipe it is given, one recipe per call, and you are $role." ;;
     "cargo "*|"RUSTDOCFLAGS=-D warnings cargo "*)
-      case " $bare_line" in
-        *" --config"*|*" -Z"*) refuse \
-"Command refused: cargo --config and -Z can run any program, and you are $role." ;;
+      case " $bare_line " in
+        *" --config"*|*" -Z"*|*" -- "*|*" --target-dir"*|*" --manifest-path"*) refuse \
+"Command refused: this cargo option runs a program, writes outside target/ or builds another crate, and you are $role." ;;
+      esac ;;
+    "typos"|"typos "*)
+      case "$bare_line" in *--dump*|*--write*|*" -w"*) refuse \
+"Command refused: this typos option writes a file, and you are $role." ;;
       esac ;;
     "git "*)
       case "$bare_line" in
@@ -264,7 +273,7 @@ Run the read alone; its whole output comes back to you." ;;
           printf '%s' "$bare_line" | grep -Eq '^git symbolic-ref( (--short|-q|--quiet))* [^ -][^ ]*$' || refuse \
 "Command refused: git symbolic-ref only reads here, one reference, and you are $role." ;;
         "git fetch"|"git fetch "*)
-          case "$bare_line" in *:*|*" -P"*|*--prune-t*|*--se*|*--refm*) refuse \
+          case "$bare_line" in *:*|*" -P"*|*" -"[!-]*P*|*--prune-t*|*--se*|*--refm*|*--dep*|*--sha*|*--unsh*) refuse \
 "Command refused: this git fetch writes local references, tags or configuration, and you are $role." ;;
           esac ;;
       esac ;;
