@@ -144,6 +144,54 @@ case_ deny  coder  Bash "sed -i '' 's/a/b/' crates/lemma-syntax/tests/parse.rs"
 case_ deny  coder  Bash "cp /tmp/x.rs crates/lemma-syntax/tests/parse.rs"
 case_ deny  coder  Bash "echo x >> .claude/plans/LEM-1.md"
 case_ deny  coder  Bash "echo '[build]' >> .cargo/config.toml"
+# A setup script runs as a command of its own; any write next to a setup path is refused.
+case_ allow coder  Bash ".claude/rules/check.sh HEAD"
+case_ allow coder  Bash "LC_ALL=C .claude/rules/check.sh HEAD 2>&1 | tail -20"
+case_ allow coder  Bash "$R/.claude/tools/frozen-check.sh abc123"
+case_ deny  coder  Bash "sed -i '' 's/a/b/' crates/lemma-codegen/src/lib.rs && .claude/rules/check.sh HEAD"
+case_ deny  coder  Bash ".claude/tools/status.sh > /tmp/status.txt"
+case_ deny  coder  Bash "echo x >> .claude/rules/check.sh"
+case_ deny  coder  Bash "cp /tmp/x.sh .claude/tools/status.sh"
+case_ deny  coder  Bash "sed -i '' 's/a/b/' .claude/tools/frozen-check.sh"
+case_ deny  coder  Bash ".claude/rules/check.sh HEAD > .claude/rules/report.txt"
+case_ deny  coder  Bash "echo x | tee .claude/hooks/tests/run.sh"
+case_ deny  coder  Bash "echo pwned >| .claude/rules/check.sh"
+case_ deny  coder  Bash "echo pwned &>./.claude/tools/frozen-check.sh"
+case_ deny  coder  Bash ">./.claude/tools/frozen-check.sh echo 'exit 0'"
+case_ deny  coder  Bash ">$R/.claude/rules/check.sh cat <<'EOF'
+exit 0
+EOF"
+case_ deny  coder  Bash "cp /tmp/evil.sh \\
+.claude/rules/check.sh"
+case_ deny  coder  Bash "echo x > \\
+.claude/tools/status.sh"
+case_ deny  coder  Bash "rm -f \\
+{crates/lemma-syntax/tests/parse.rs,/.claude/rules/x.sh}"
+case_ deny  coder  Bash ".claude/rules/check.sh.bak > .claude/rules/check.sh"
+case_ deny  coder  Bash "xargs cp /tmp/evil.sh <<'EOF'
+.claude/rules/check.sh
+EOF"
+case_ deny  coder  Bash "t=(.claude/rules/check.sh); cp /tmp/evil.sh \"\${t[0]}\""
+case_ deny  coder  Bash "xargs cp /tmp/evil.sh <<\\EOF
+.claude/rules/check.sh
+EOF"
+case_ deny  coder  Bash "xargs cp /tmp/evil.sh <<<x <<EOF
+.claude/rules/check.sh
+EOF"
+case_ deny  coder  Bash "xargs cp /tmp/evil.sh <<A <<B
+A
+.claude/rules/check.sh
+B"
+case_ deny  coder  Bash "xargs -I{} cp /tmp/evil.sh {} <<EOF
+	EOF
+.claude/rules/check.sh
+EOF"
+case_ deny  coder  Bash "xargs -I{} cp /tmp/evil.sh {} <<EOF.x
+EOF
+.claude/rules/check.sh
+EOF.x"
+case_ deny  coder  Bash "printf '%s\\n' \"(.claude/rules/check.sh\" | tr -d '(' | xargs cp /tmp/evil.sh"
+case_ deny  coder  Bash "echo x > crates/a.rs; .claude/rules/check.sh HEAD; cp /tmp/y .claude/rules/sgconfig.yml"
 case_ deny  coder  Bash "ast-grep -p 'x.unwrap()' -r 'x?' -U crates/"
 case_ allow coder  Bash "ast-grep -l rust -p '\$X.unwrap()' crates/ | grep -i lemma"
 

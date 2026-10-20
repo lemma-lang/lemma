@@ -405,6 +405,8 @@ If the patterns look wrong to you, say so in your report: the user fixes them."
 "Command refused: it appears to write to the setup that runs the roles and
 their guards, and you are the coder.
     $cmd
+If you only meant to run a setup script (check.sh, frozen-check.sh), run it as a
+command of its own, and write files with Write or Edit, not through the shell.
 If it looks wrong to you, say what and why in your report: the user fixes it."
           ;;
         *.github/*|*cog.toml*|*deny.toml*|*clippy.toml*|*rustfmt.toml*|\

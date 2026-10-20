@@ -58,7 +58,9 @@ Method:
    follows a shape, prefer `ast-grep` to `grep` (`ast-grep -l rust -p '$CTX.build_load($$$)'`).
    For the same change across several files, `ast-grep -p … -r …` without `-U` shows the diff;
    then apply it file by file with `Edit`. `-U` and `-i` are refused by the guard.
-3. Write the minimum that satisfies the tests, without generalizing beyond what they ask.
+3. Write the minimum that satisfies the tests, without generalizing beyond what they ask. Write
+   and change files with `Write` and `Edit`, not through the shell (no heredoc into a file, no
+   `sed -i`): the guard judges those tools path by path.
 4. Run the crate's tests again, iterate until green. At the end run the whole workspace, as the
    gate and CI will:
    ```bash
@@ -69,7 +71,8 @@ Method:
    or its underlying `cargo` command to read the error. Then `git status --porcelain`: `just fmt`
    must not have moved a test file (the tester leaves them formatted); if it did, say so, do not
    restore it yourself.
-5. Run `.claude/rules/check.sh HEAD`. On the lines of your pass only, it flags `unwrap` / `expect`,
+5. Run `.claude/rules/check.sh HEAD`, as a command of its own (chained after a write, the guard
+   reads it as a write to the setup). On the lines of your pass only, it flags `unwrap` / `expect`,
    an `unsafe` block without `// SAFETY:`, condition chains, nesting, comments in a body and the
    ticket key. Fix every "new" finding, then run the suite again; a "touched" finding goes under
    *Points raised*.
