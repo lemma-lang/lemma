@@ -181,32 +181,37 @@ Run a single command per call." ;;
   # "git -C <worktree> …" and "just <worktree>/<recipe> …" are judged as the bare command.
   worktree_of() { # $1 = path → its physical path when git lists it as a worktree, else nothing
     local physical listed
-    physical=$(cd "$cwd" 2>/dev/null && cd "$1" 2>/dev/null && pwd -P) || return 0
+    physical=$(cd -P "$cwd" 2>/dev/null && cd -P "$1" 2>/dev/null && pwd -P) || return 0
     git -C "$cwd" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' \
       | while IFS= read -r listed; do
-          [ "$(cd "$listed" 2>/dev/null && pwd -P)" = "$physical" ] && printf '%s' "$physical"
+          [ "$(cd -P "$listed" 2>/dev/null && pwd -P)" = "$physical" ] && printf '%s' "$physical"
         done
   }
-  split_path() { # $1 = text starting with a path, plain or double-quoted → "path<TAB>rest"
-    local path
+  split_path() { # $1 = text starting with a path, plain or double-quoted → sets path_arg and rest_arg
     case "$1" in
-      \"*) path=${1#\"}; path=${path%%\"*}; printf '%s\t%s' "$path" "${1#\"$path\"}" ;;
-      *) path=${1%%[[:space:]]*}; printf '%s\t%s' "$path" "${1#"$path"}" ;;
+      \"*) path_arg=${1#\"}; path_arg=${path_arg%%\"*}; rest_arg=${1#\"$path_arg\"} ;;
+      *) path_arg=${1%%[[:space:]]*}; rest_arg=${1#"$path_arg"} ;;
     esac
   }
-  worktree_refusal="Command refused: \"%s\" is not a worktree of this repository (git worktree list), and you are $role.
+  require_worktree() { # $1 = path; refuses unless it is a registered worktree
+    case "$1" in
+      *[[:cntrl:]]*) refuse "Command refused: a path with a control character, and you are $role." ;;
+    esac
+    [ -n "$(worktree_of "$1")" ] || refuse \
+"Command refused: \"$1\" is not a worktree of this repository (git worktree list), and you are $role.
 Run the command against the main checkout or a worktree the main session created."
+  }
   case "$head_line" in
     "git -C "*)
-      split=$(split_path "${head_line#git -C }")
-      [ -n "$(worktree_of "${split%%	*}")" ] || refuse "$(printf "$worktree_refusal" "${split%%	*}")"
-      head_line="git${split#*	}" ;;
-    "just "*/*)
-      split=$(split_path "${head_line#just }")
-      case "${split%%	*}" in
+      split_path "${head_line#git -C }"
+      require_worktree "$path_arg"
+      head_line="git$rest_arg" ;;
+    "just "*)
+      split_path "${head_line#just }"
+      case "$path_arg" in
         */*)
-          [ -n "$(worktree_of "${split%/*}")" ] || refuse "$(printf "$worktree_refusal" "${split%/*}")"
-          head_line="just ${split##*/}" ;;
+          require_worktree "${path_arg%/*}"
+          head_line="just ${path_arg##*/}$rest_arg" ;;
       esac ;;
   esac
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the

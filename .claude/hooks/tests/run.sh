@@ -349,6 +349,7 @@ case_ allow pr-reviewer Bash "git rev-parse HEAD"
 case_ deny  pr-reviewer Bash "npm test"
 case_ allow pr-reviewer Write "$R/.claude/reviews/pr/7.md"
 case_ deny  pr-reviewer Write "$R/.claude/reviews/mr/7.md"
+case_ deny  pr-reviewer Write "$R/.claude/reviews/LEM-3.md"
 
 # --- Pull requests in a worktree: the same commands, aimed at a registered worktree
 wt_main="$tmp/wt-main"
@@ -370,7 +371,14 @@ case_ deny  pr-reviewer Bash "git -C $wt_copy push origin HEAD" "$wt_main"
 case_ deny  pr-reviewer Bash "just $wt_copy/fmt" "$wt_main"
 case_ deny  pr-reviewer Bash "git -C $wt_copy log && rm -rf $wt_copy" "$wt_main"
 case_ deny  pr-writer   Bash "just $wt_copy/check" "$wt_main"
-case_ deny  pr-reviewer Write "$R/.claude/reviews/LEM-3.md"
+case_ allow pr-reviewer Bash "git -C $wt_copy diff --stat origin/main..HEAD -- crates/" "$wt_main"
+mkdir -p "$tmp/wt-far/inside"
+ln -s "$tmp/wt-far/inside" "$wt_copy/link"
+case_ deny  pr-reviewer Bash "git -C $wt_copy/link/.. status" "$wt_main"
+case_ deny  pr-reviewer Bash "just $wt_copy/link/../check" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C \"$wt_copy/	 log\" push origin HEAD" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C $wt_copy -C $wt_stray log" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C $wt_copy -c core.pager=sh log" "$wt_main"
 
 # --- Renamed roles: the old names are no longer GitHub roles ---------------------
 case_ deny  mr-reviewer Bash "gh pr merge 7 --squash --match-head-commit 0123abc"
