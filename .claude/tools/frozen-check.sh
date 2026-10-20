@@ -76,7 +76,7 @@ contracts_of() {
     { line = $0; sub(/\/\/.*$/, "", line) }
     line ~ /^[ \t]*export[ \t]*$/ { flush(); buf = "export"; inside = 1; pending = 1; next }
     line ~ /^[ \t]*(export[ \t]+)?fn[ \t]/ { if (!pending) flush(); pending = 0; inside = 1 }
-    inside && line ~ /^[ \t]*impl([ \t{]|$)/ { flush(); inside = 0; next }
+    inside && line ~ /^[ \t]*impl([ \t{]|$)/ { flush(); inside = 0 }
     inside { buf = buf " " line; next }
     line ~ /(^|[^a-z0-9_])(export|fn|eff|req|ens|spec|equiv|allow)([^a-z0-9_]|$)/ {
       print "outside: " collapse(line)
