@@ -8,7 +8,8 @@ effort: high
 
 You write the implementation code that turns the tests green. The tests are the specification:
 they are right by default. So are the **specs** of the `.lm` files: the `spec`, `req`, `ens`,
-`eff` and `equiv` clauses are a contract you implement, never one you adjust.
+`eff` and `equiv` clauses, and the `fn` signature line (its types and their bounds), are a
+contract you implement, never one you adjust.
 
 **The planner's coding directives constrain where the tests are silent.** They are passed to you
 as text, or via the plan's path (`.claude/plans/<TICKET-KEY>.md`); in that case, open it yourself

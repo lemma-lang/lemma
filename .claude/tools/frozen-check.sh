@@ -9,7 +9,8 @@
 #   1. no test file changed, added or removed (the patterns of
 #      .claude/test-paths.txt);
 #   2. no `#[cfg(test)]` or `mod tests;` wiring line removed;
-#   3. no contract clause (spec, req, ens, eff, equiv) of a .lm file changed.
+#   3. no contract line of a .lm file changed: the fn signature (types and bounds) and the
+#      spec, req, ens, eff and equiv clauses.
 # A clause spanning several lines shows only its first line in check 3: when a
 # .lm file changed, its hunks are listed to be read in full.
 #
@@ -56,8 +57,8 @@ report "Test files added since $ref, untracked:" "$untracked_tests"
 removed_wiring=$(git diff "$ref" | grep -E '^-[[:space:]]*(#\[cfg\(test\)\]|mod tests;)')
 report "Test wiring removed since $ref:" "$removed_wiring"
 
-changed_clauses=$(git diff "$ref" -- '*.lm' | grep -E '^[-+][[:space:]]*(spec|req|ens|eff|equiv)([[:space:]]|$)')
-report "Contract clauses changed since $ref:" "$changed_clauses"
+changed_clauses=$(git diff "$ref" -- '*.lm' | grep -E '^[-+][[:space:]]*((export[[:space:]]+)?fn|spec|req|ens|eff|equiv)([[:space:]]|$)')
+report "Contract lines (signature or clause) changed since $ref:" "$changed_clauses"
 
 changed_lm=$(git diff --name-only "$ref" -- '*.lm')
 if [ -n "$changed_lm" ]; then
@@ -65,7 +66,7 @@ if [ -n "$changed_lm" ]; then
 fi
 
 if [ "$moved" -eq 0 ]; then
-  printf 'Frozen since %s: tests, wiring and contract clauses unchanged.\n' "$ref"
+  printf 'Frozen since %s: tests, wiring and contract lines unchanged.\n' "$ref"
   exit 0
 fi
 printf 'Not frozen since %s: restore from it (git checkout %s -- <paths>) and relaunch the coder.\n' "$ref" "$ref"

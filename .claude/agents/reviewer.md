@@ -113,7 +113,8 @@ Method:
 8. Look at the **tests and the specs**. Did they change during the coder's pass? With the hash of
    the **red-tests commit**, the question is settled: `git diff <tests-commit> -- <test paths>`
    must be empty, and so must the contract clauses of the `.lm` files
-   (`git diff <tests-commit> -- '*.lm'`, read every `spec`, `req`, `ens`, `eff`, `equiv` line).
+   (`git diff <tests-commit> -- '*.lm'`, read every `fn` signature line and every `spec`, `req`,
+   `ens`, `eff`, `equiv` line).
    A test weakened, deleted, `#[ignore]`d or made tautological, a spec loosened, an `allow(...)`
    added to an `equiv` clause: the most serious defect you can find, because it turns wrong work
    green. Also raise, as a reservation, the tests added by the diff that are **redundant**, naming
