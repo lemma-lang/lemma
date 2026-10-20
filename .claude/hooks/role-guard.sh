@@ -215,28 +215,41 @@ Run the command against the main checkout or a worktree the main session created
           head_line="just ${path_arg##*/}$rest_arg" ;;
       esac ;;
   esac
-  # The allowlist judges a prefix, so whatever follows it must stay a read: one final pipe into
-  # tail, head, grep or wc, descriptor duplications and /dev/null; no other pipe, & or >.
-  shape=$(printf '%s' "$head_line" | sed -E -e "s/'[^']*'//g" -e 's/"[^"]*"//g' \
-    -e 's/[[:space:]]*\|[[:space:]]*(tail|head|grep|wc)([[:space:]]+[^|&<>;]*)?$//' \
-    -e 's/[0-9]*>&([0-9]+|-)([^A-Za-z0-9_./~-]|$)/\2/g' -e 's#[0-9]*>[[:space:]]*/dev/null##g')
-  case "$shape" in
-    *'|'*|*'&'*|*'>'*) refuse \
-"Command refused: a pipe, a background & or a redirection, and you are $role.
-Only one final pipe into tail, head, grep or wc is allowed, after a read." ;;
+  # The allowlist judges a prefix, so the rest of the line is held to plain words, judged on the
+  # raw text: the only shell syntax left is a final <<'EOF' whose terminator ends the command.
+  plain_line=$head_line
+  case "$head_line" in
+    *" <<'EOF'")
+      plain_line=${head_line%" <<'EOF'"}
+      [ "$(printf '%s\n' "$cmd_issues" | tail -n 1)" = "EOF" ] \
+        && [ "$(printf '%s\n' "$cmd_issues" | grep -cx 'EOF')" -eq 1 ] || refuse \
+"Command refused: the heredoc must end the command, with a single EOF line, and you are $role." ;;
   esac
-  # just runs every recipe named on the line: one recipe, no argument.
-  case "$shape" in
+  case "$plain_line" in
+    *'|'*|*'&'*|*'>'*|*'<'*|*'\'*|*'$'*|*[[:cntrl:]]*) refuse \
+"Command refused: no pipe, &, redirection, backslash, \$ or control character, and you are $role.
+Run the read alone; its whole output comes back to you." ;;
+  esac
+  case "$plain_line" in
     "just "*)
-      printf '%s' "$shape" | grep -Eq '^just[[:space:]]+[A-Za-z0-9_-]+[[:space:]]*$' || refuse \
+      printf '%s' "$plain_line" | grep -Eq '^just [A-Za-z0-9_-]+$' || refuse \
 "Command refused: just runs every recipe it is given, one recipe per call, and you are $role." ;;
-  esac
-  # git options that run a command or write a file, whatever the subcommand.
-  case "$shape" in
     "git "*)
-      case " $shape " in
-        *" --upload-pack"*|*" --output"*|*" --exec"*|*" --receive-pack"*) refuse \
+      case "$plain_line" in
+        *--upl*|*--output*|*--exec*|*--receive-pack*) refuse \
 "Command refused: this git option runs a command or writes a file, and you are $role." ;;
+      esac
+      case "$plain_line" in
+        "git branch "*)
+          printf '%s ' "${plain_line#git branch}" | grep -Eq -- ' (-[A-Za-z]*[dDmMcCfu]|--(delete|move|copy|force|set-upstream|unset-upstream|edit-description|track))' && refuse \
+"Command refused: git branch only lists here, and you are $role." ;;
+        "git symbolic-ref "*)
+          printf '%s' "$plain_line" | grep -Eq '^git symbolic-ref( (--short|-q|--quiet))* [^ -][^ ]*$' || refuse \
+"Command refused: git symbolic-ref only reads here, one reference, and you are $role." ;;
+        "git fetch"*)
+          case "$plain_line" in *:*) refuse \
+"Command refused: a refspec writes local references, git fetch only updates the remote ones here, and you are $role." ;;
+          esac ;;
       esac ;;
   esac
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the
