@@ -9,10 +9,10 @@
 #   1. no test file changed, added or removed (the patterns of
 #      .claude/test-paths.txt);
 #   2. no `#[cfg(test)]` or `mod tests;` wiring line removed;
-#   3. no contract line of a .lm file changed: the fn signature (types and bounds) and the
-#      spec, req, ens, eff and equiv clauses.
-# A clause spanning several lines shows only its first line in check 3: when a
-# .lm file changed, its hunks are listed to be read in full.
+#   3. no contract of a .lm function changed: everything from its fn line up to its
+#      impl line (signature, types and bounds, spec, req, ens, eff, equiv), compared
+#      with comments removed and whitespace collapsed, so a clause or a signature
+#      split over several lines is covered whole and a layout change is not a move.
 #
 # Exit code 0 when frozen, 1 when something moved, 2 if the check could not run.
 #
@@ -57,16 +57,38 @@ report "Test files added since $ref, untracked:" "$untracked_tests"
 removed_wiring=$(git diff "$ref" | grep -E '^-[[:space:]]*(#\[cfg\(test\)\]|mod tests;)')
 report "Test wiring removed since $ref:" "$removed_wiring"
 
-changed_clauses=$(git diff "$ref" -- '*.lm' | grep -E '^[-+][[:space:]]*((export[[:space:]]+)?fn|spec|req|ens|eff|equiv)([[:space:]]|$)')
-report "Contract lines (signature or clause) changed since $ref:" "$changed_clauses"
+# One line per function: its contract, from the fn line to the impl line,
+# without comments and with whitespace collapsed.
+contracts_of() {
+  awk '
+    function flush() {
+      if (buf == "") return
+      gsub(/[ \t]+/, " ", buf); sub(/^ /, "", buf); sub(/ $/, "", buf)
+      print buf; buf = ""
+    }
+    { line = $0; sub(/\/\/.*$/, "", line) }
+    line ~ /^[ \t]*(export[ \t]+)?fn[ \t]/ { flush(); inside = 1 }
+    inside && line ~ /^[ \t]*impl([ \t{]|$)/ { flush(); inside = 0; next }
+    inside { buf = buf " " line }
+    END { flush() }
+  '
+}
 
-changed_lm=$(git diff --name-only "$ref" -- '*.lm')
-if [ -n "$changed_lm" ]; then
-  printf '.lm files changed since %s, read their hunks in full (a clause may span lines):\n%s\n\n' "$ref" "$changed_lm"
-fi
+changed_contracts=""
+for file in $(git diff --name-only "$ref" -- '*.lm'; git ls-files --others --exclude-standard -- '*.lm'); do
+  before=$(git show "$ref:$file" 2>/dev/null | contracts_of)
+  after=$( [ -f "$file" ] && contracts_of < "$file")
+  [ "$before" = "$after" ] && continue
+  delta=$(diff <(printf '%s\n' "$before") <(printf '%s\n' "$after") | grep -E '^[<>]' \
+    | sed -e 's/^</  before:/' -e 's/^>/  after: /')
+  changed_contracts="$changed_contracts$file
+$delta
+"
+done
+report "Contracts (fn line to impl line) changed since $ref:" "${changed_contracts%$'\n'}"
 
 if [ "$moved" -eq 0 ]; then
-  printf 'Frozen since %s: tests, wiring and contract lines unchanged.\n' "$ref"
+  printf 'Frozen since %s: tests, wiring and contracts unchanged.\n' "$ref"
   exit 0
 fi
 printf 'Not frozen since %s: restore from it (git checkout %s -- <paths>) and relaunch the coder.\n' "$ref" "$ref"
