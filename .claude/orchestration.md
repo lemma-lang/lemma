@@ -243,7 +243,8 @@ that the documentation lands in the same commit (`AGENTS.md`, "Documentation sta
 it:
 
 - **at the exit gate**, in parallel with the `reviewer`, whenever the diff touches
-  `crates/lemma-verify/` or any `spec`, `req`, `ens`, `eff` or `equiv` clause of a `.lm` file;
+  `crates/lemma-verify/`, any `spec`, `req`, `ens`, `eff` or `equiv` clause of a `.lm` file, or
+  a `fn` signature line (its types and bounds are contract too);
 - **before the `tester`**, when a step introduces a new spec in `examples/`: it writes the spec,
   and the list of known-wrong outputs the spec must reject, which the `tester` turns into
   differential tests;
@@ -636,13 +637,17 @@ context is polluted.
    ```bash
    git diff --stat <tests-commit> -- <test paths>
    git diff <tests-commit> | grep -E '^-[[:space:]]*(#\[cfg\(test\)\]|mod tests;)'
-   git diff <tests-commit> -- '*.lm' | grep -E '^[-+][[:space:]]*(spec|req|ens|eff|equiv)([[:space:]]|$)'
+   git diff <tests-commit> -- '*.lm' | grep -E '^[-+][[:space:]]*((export[[:space:]]+)?fn|spec|req|ens|eff|equiv)([[:space:]]|$)'
    ```
    The first covers the test files the commit froze; the second a removed wiring line, in a
-   production file the coder otherwise edits freely; the third the contract clauses of every `.lm`
-   file, which the coder can write (the impl lives beside the spec) but must not change. A clause
+   production file the coder otherwise edits freely; the third the contract of every `.lm` file
+   (its clauses, and the `fn` signature line, which carries the types and their bounds), which the
+   coder can write (the impl lives beside the spec) but must not change. A new function shows as
+   added `fn` and clause lines, and `frozen-check.sh` exits 1 on it too: you read its hunks, and
+   accept it only if the plan's step called for that function. A clause
    spanning several lines shows only its first line here: read the `.lm` hunks of the diff in
-   full. **If any of the three is non-empty, the pass is rejected**: restore from that commit
+   full. **If any of the three is non-empty, except for a new function accepted as above, the pass is
+   rejected**: restore from that commit
    (`git checkout <tests-commit> -- <paths>`, or the spec lines by hand) and relaunch the coder,
    telling it so. The guard covers the tests, not the specs, and the shell imperfectly: this check
    is what proves it, and it costs a second. If one day it bites, that is information of the first

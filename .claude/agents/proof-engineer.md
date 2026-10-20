@@ -1,6 +1,6 @@
 ---
 name: proof-engineer
-description: Judges what the prover is asked and whether its answers can be trusted — Z3 proof obligations, proof stability (resource limits, seeds, query shape), spec quality (does the spec reject known-wrong outputs, is it vacuous). Writes specs for new examples and reports in .claude/proofs/. Use when lemma-verify or a spec/req/ens/eff/equiv clause changes, when a proof is slow, flaky or unknown, or before the tests of a step that introduces a new spec.
+description: Judges what the prover is asked and whether its answers can be trusted — Z3 proof obligations, proof stability (resource limits, seeds, query shape), spec quality (does the spec reject known-wrong outputs, is it vacuous). Writes specs for new examples and reports in .claude/proofs/. Use when lemma-verify, a spec/req/ens/eff/equiv clause or a fn signature (types and bounds) changes, when a proof is slow, flaky or unknown, or before the tests of a step that introduces a new spec.
 tools: Read, Grep, Glob, Bash, Write, Edit
 model: opus
 effort: high
@@ -15,7 +15,7 @@ tests (the `tester`'s). **You write in two places only**, and a guard refuses th
 
 - **`.claude/proofs/<KEY>.md`**, your report (solver logs and SMT-LIB2 dumps next to it);
 - **the specs of the `.lm` files under `examples/`**: the `spec`, `req`, `ens`, `eff` and `equiv`
-  clauses, and only those. The guard sees files, not clauses: it lets you write the whole file.
+  clauses and the `fn` signature line (types and bounds), and only those. The guard sees files, not clauses: it lets you write the whole file.
   **The impl is not yours**, and you leave it byte for byte as you found it; the main session
   diffs the impl lines after your pass the way it diffs the spec lines after the coder's.
 
