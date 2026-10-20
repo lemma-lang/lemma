@@ -432,8 +432,10 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
     *) exit 0 ;;
   esac
   # The code part only: `grep -n "cargo install" .github/workflows/ci.yml` installs nothing.
-  cmd_examined=$(printf '%s' "$code" | sed -e 's/[0-9]*>&[0-9-]*//g' \
-    -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g')
+  # A quoted string stays as a placeholder, so that `>&2"file"` remains a write.
+  cmd_examined=$(printf '%s\n' "$cmd" | awk '{ print } /<</ { exit }' \
+    | sed -E -e "s/''//g" -e 's/""//g' -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g' \
+             -e 's/[0-9]*>&([0-9]+|-)([[:space:];&|<>()]|$)/\2/g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g')
   if [ -n "$own" ]; then
     own_re=$(printf '%s' "$own" | sed -e 's/\./\\./g')
     cmd_examined=$(printf '%s' "$cmd_examined" | sed -E \
