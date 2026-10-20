@@ -477,5 +477,23 @@ frozen_move() { # $1 = description, $2 = new path ("" deletes the file)
 frozen_move "file deleted" ""
 frozen_move "file renamed to a name with a space" "get copy.lm"
 
+# --- check.sh: a changed file that is not valid UTF-8 is still read whole ------
+bytes="$tmp/bytes"
+mkdir -p "$bytes/.claude"
+cp "$root/.claude/project.conf" "$bytes/.claude/"
+git -C "$bytes" init -q
+git -C "$bytes" -c user.name=t -c user.email=t@t commit -qm base --allow-empty
+key=$(sed -n 's/^TICKET_KEY=[[:space:]]*\([A-Za-z][A-Za-z0-9]*\).*/\1/p' "$root/.claude/project.conf" | head -1)
+printf 'a\377b\n// %s-1\n' "$key" > "$bytes/fixture.lm"
+utf8=$(locale -a 2>/dev/null | grep -ix -m1 'c\.utf-\{0,1\}8\|en_US\.utf-\{0,1\}8')
+bytes_out=$(cd "$bytes" && LC_ALL=$utf8 "$root/.claude/rules/check.sh" HEAD 2>"$tmp/bytes.err")
+bytes_case() { # $1 = description, $2 = condition already evaluated (0 = holds)
+  if [ "$2" = 0 ]; then pass=$((pass + 1)); else failed=$((failed + 1)); echo "FAIL  check.sh on a file that is not UTF-8: $1"; fi
+}
+[ -n "$utf8" ]; bytes_case "a UTF-8 locale to run it under" $?
+[ ! -s "$tmp/bytes.err" ]; bytes_case "nothing on stderr" $?
+printf '%s\n' "$bytes_out" | grep -qF -- '- .lm (1 file(s))'; bytes_case "its type listed under Not checked" $?
+printf '%s\n' "$bytes_out" | grep -q 'fixture.lm:2.*ticket-key'; bytes_case "a finding after the invalid byte" $?
+
 printf '%s passed, %s failed\n' "$pass" "$failed"
 [ "$failed" -eq 0 ]
