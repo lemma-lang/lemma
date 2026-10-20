@@ -36,13 +36,46 @@ cwd=${cwd%/}
 # The main session is not a role: it orchestrates, and nothing bounds it.
 [ -n "$role" ] || exit 0
 
+# The lines the shell runs as commands. A heredoc body is dropped only in the
+# shape the roles use, where bash and this check cannot read the command
+# differently: a single heredoc opened at the end of the first line, that line
+# holding plain words and simple quotes only, its terminator the last line;
+# with an unquoted delimiter, the body holds no `$`, backquote or backslash,
+# which bash would expand and could run. Any other shape keeps every line, so
+# that a doubt costs a refusal, never a hidden command. `"$(cat <<'EOF'` is not
+# that shape: bash 3.2 ends the substitution at a `)` inside the body.
+outside_heredocs() { # stdin = command → stdout
+  awk '
+    { lines[NR] = $0 }
+    END {
+      head = lines[1]
+      if (match(head, /[ \t]<<(\047[A-Za-z_]+\047|"[A-Za-z_]+"|[A-Za-z_]+)$/)) {
+        prefix = substr(head, 1, RSTART - 1); word = substr(head, RSTART + 3)
+      } else word = ""
+      expands = (word != "" && word !~ /["\047]/)
+      gsub(/["\047]/, "", word)
+      plain = (word != "" && prefix ~ /^([A-Za-z0-9 \t_.\/:=@%+,{}|&;>-]|\047[^\047]*\047|"[^"$`\\]*")*$/)
+      terminator = 0
+      for (i = 2; plain && i <= NR && !terminator; i++) {
+        if (lines[i] == word) terminator = i
+        else if (expands && lines[i] ~ /[$`\\]/) plain = 0
+      }
+      if (plain && terminator == NR) {
+        print head
+        exit
+      }
+      for (i = 1; i <= NR; i++) print lines[i]
+    }
+  '
+}
+
 # What the shell runs as commands, as opposed to the data it carries: a
 # heredoc body (a commit message, an issue description) and a quoted string
 # (a grep pattern, a -m message) are dropped, so that a commit saying "apply
 # cargo fmt" or a `grep "cargo install"` is not mistaken for running it. A
 # speed bump like the rest: `"cargo" fmt` slips through.
 code_of() { # $1 = command
-  printf '%s\n' "$1" | awk '{ print } /<</ { exit }' \
+  printf '%s\n' "$1" | outside_heredocs \
     | sed -E -e "s/([A-Za-z_][A-Za-z0-9_]*)=[\"']([^\"' ]*)[\"']/\\1=\\2/g" \
              -e "s/'[^']*'//g" -e 's/"[^"]*"//g'
 }
@@ -497,7 +530,7 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
   esac
   # The code part only: `grep -n "cargo install" .github/workflows/ci.yml` installs nothing.
   # A quoted string stays as a placeholder, so that `>&2"file"` remains a write.
-  cmd_examined=$(printf '%s\n' "$cmd" | awk '{ print } /<</ { exit }' \
+  cmd_examined=$(printf '%s\n' "$cmd" | outside_heredocs \
     | sed -E -e "s/''//g" -e 's/""//g' -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g' \
              -e 's/[0-9]*>&([0-9]+|-)([[:space:];&|<>()]|$)/\2/g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g')
   if [ -n "$own" ]; then

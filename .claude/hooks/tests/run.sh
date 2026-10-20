@@ -246,6 +246,43 @@ case_ allow coder Bash "INSTA_UPDATE='no' cargo test"
 case_ allow coder Bash "grep -n \"a > b\" crates/lemma-syntax/src/tests.rs"
 case_ deny  coder Bash "echo x > \"crates/lemma-syntax/src/tests.rs\""
 
+# --- A heredoc ends at its terminator: the lines after it are commands --------
+case_ deny  coder  Bash $'true <<EOF\nEOF\necho x > crates/lemma-syntax/src/tests.rs'
+case_ deny  coder  Bash $'cat <<-EOF\n\tx\n\tEOF\ncp /tmp/evil.sh .claude/rules/check.sh'
+case_ deny  coder  Bash $'cat <<A <<\'B\'\na\nA\nb\nB\necho x > crates/lemma-syntax/src/tests.rs'
+case_ deny  coder  Bash $'echo hi # <<X\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo "<<X"\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo $((1<<X))\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'true <<EOF\nEOF\ngh issue close 3'
+case_ deny  devsecops Bash $'cat <<EOF\nx\nEOF\necho x > deny.toml'
+case_ deny  proof-engineer Bash $'cat <<EOF\nx\nEOF\necho x > crates/lemma-verify/src/lib.rs'
+case_ deny  perf-engineer Bash $'cat <<EOF\nx\nEOF\necho x > crates/lemma-jit/src/lib.rs'
+case_ deny  language-designer Bash $'cat <<EOF\nx\nEOF\necho x > crates/lemma-syntax/src/lib.rs'
+case_ deny  ticket-reader Bash $'gh issue view 3 <<EOF\nEOF\ngh issue close 3'
+case_ deny  ticket-writer Bash $'gh issue comment 3 --body-file - <<\'EOF\'\nx\nEOF\ngh issue close 3'
+case_ deny  pr-writer Bash $'gh pr comment 7 --body-file - <<\'EOF\'\nx\nEOF\ngh pr merge 7 --squash'
+case_ deny  coder  Bash $'cat <<E\"O\"F\nx\nEOF\necho x > crates/lemma-syntax/src/tests.rs\nE'
+case_ deny  coder  Bash $'cat <<\'EO\'F\nx\nEOF\necho x > crates/lemma-syntax/src/tests.rs\nEO'
+case_ deny  coder  Bash $'cat <<E\\OF\nx\nEOF\necho x > crates/lemma-syntax/src/tests.rs\nE'
+case_ deny  coder  Bash $'cat <<E/F\nx\nE/F\necho x > crates/lemma-syntax/src/tests.rs\nE'
+case_ deny  coder  Bash $'cat <<-$X\nx\n\necho x > crates/lemma-syntax/src/tests.rs\n$X'
+case_ deny  coder  Bash $'echo \\<<X\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo $(( (1) << X ))\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo ${x:-<<X}\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo $[1<<X]\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'(true)#<<X\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo \"a\n<<X\n\"\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'git commit -m \"$(cat <<\'EOF\'\nx\nEOF\n)\"\necho x > crates/lemma-syntax/src/tests.rs'
+case_ deny  coder  Bash $'echo $\'\\\' <<X \'\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'cat <<E\\\nOF\nEOF\necho x > crates/lemma-syntax/src/tests.rs\nE'
+case_ deny  coder  Bash $'echo ${x:-\"}\"}\necho \"<<X \"\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'echo \"$(case x in a) echo \"<<X \";; esac)\"\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'cat <<X\nX\necho x > crates/lemma-syntax/src/tests.rs\nX'
+case_ deny  coder  Bash $'cat <<EOF\n$(echo x > crates/lemma-syntax/src/tests.rs)\nEOF'
+case_ allow coder  Bash $'cat <<\'EOF\'\n$(echo x > crates/lemma-syntax/src/tests.rs)\nEOF'
+case_ allow coder  Bash $'cat <<EOF\ncargo insta accept\nEOF'
+case_ deny  committer Bash $'git commit -m "$(cat <<\'EOF\'\n)\n$(gh issue close 3)\nEOF\n)"'
+
 # --- gh: who may call it at all ------------------------------------------------
 case_ deny  coder Bash "gh issue list"
 case_ deny  planner Bash "gh issue view 3"
