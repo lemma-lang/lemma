@@ -373,12 +373,24 @@ if [ "$role" = "coder" ]; then
   # written to can be quoted.
   strip_reads() { sed -e 's/[0-9]*>&[0-9-]*//g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g'; }
   # A setup script in command position is run, not written (the coder runs check.sh
-  # before handing in); dropping its name leaves a real write into .claude/ in view.
-  strip_runs() {
-    awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }' \
-      | sed -E 's#(^|[;(]|&&|\|\||[^>]\||[^>]&)([[:space:]]*)(([A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./~$:-]*[[:space:]]+)*)("?[A-Za-z0-9_./~$-]*/)?\.claude/(rules|tools|hooks/tests)/[A-Za-z0-9_.-]+\.sh"?([[:space:];&|)]|$)#\1\2\3\7#g'
+  # before handing in); its name is dropped only when the code part shows every such run.
+  setup_run='(^|;|^\(|[^=]\(|&&|\|\||[^>]\||[^>]&)([[:space:]]*)(([A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./~$:-]*[[:space:]]+)*)("?[A-Za-z0-9_./~$-]*/)?\.claude/(rules|tools|hooks/tests)/[A-Za-z0-9_.-]+\.sh"?([[:space:];&|)]|$)'
+  join_lines() { awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }'; }
+  count_runs() { join_lines | grep -Eo "$setup_run" | wc -l | tr -d ' '; }
+  # The code part with every heredoc body dropped, so a run after the terminator counts.
+  code_lines() {
+    awk '
+      skip { line = $0; sub(/^\t+/, "", line); if (line == delim) skip = 0; next }
+      { print }
+      match($0, /<<-?[[:space:]]*["\047]?[A-Za-z_][A-Za-z0-9_]*/) && substr($0, RSTART - 1, 1) != "<" {
+        delim = substr($0, RSTART, RLENGTH); sub(/^<<-?[[:space:]]*["\047]?/, "", delim); skip = 1
+      }
+    ' | sed -E -e "s/'[^']*'//g" -e 's/"[^"]*"//g'
   }
-  cmd_examined=$(printf '%s' "$cmd" | strip_reads | strip_runs)
+  cmd_examined=$(printf '%s' "$cmd" | strip_reads | join_lines)
+  if [ "$(printf '%s\n' "$cmd_examined" | count_runs)" = "$(printf '%s\n' "$cmd" | code_lines | strip_reads | count_runs)" ]; then
+    cmd_examined=$(printf '%s\n' "$cmd_examined" | sed -E "s#$setup_run#\\1\\2\\3\\7#g")
+  fi
   code_examined=$(printf '%s' "$code" | strip_reads)
   case "$code_examined" in
     *sed\ -i*|*tee\ *|*\>*|*mv\ *|*cp\ *|*rm\ *|*truncate*|*patch\ *)
