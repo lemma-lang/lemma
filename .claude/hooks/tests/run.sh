@@ -157,6 +157,19 @@ case_ deny  coder  Bash "cp /tmp/x.sh .claude/tools/status.sh"
 case_ deny  coder  Bash "sed -i '' 's/a/b/' .claude/tools/frozen-check.sh"
 case_ deny  coder  Bash ".claude/rules/check.sh HEAD > .claude/rules/report.txt"
 case_ deny  coder  Bash "echo x | tee .claude/hooks/tests/run.sh"
+case_ deny  coder  Bash "echo pwned >| .claude/rules/check.sh"
+case_ deny  coder  Bash "echo pwned &>./.claude/tools/frozen-check.sh"
+case_ deny  coder  Bash ">./.claude/tools/frozen-check.sh echo 'exit 0'"
+case_ deny  coder  Bash ">$R/.claude/rules/check.sh cat <<'EOF'
+exit 0
+EOF"
+case_ deny  coder  Bash "cp /tmp/evil.sh \\
+.claude/rules/check.sh"
+case_ deny  coder  Bash "echo x > \\
+.claude/tools/status.sh"
+case_ deny  coder  Bash "rm -f \\
+{crates/lemma-syntax/tests/parse.rs,/.claude/rules/x.sh}"
+case_ deny  coder  Bash ".claude/rules/check.sh.bak > .claude/rules/check.sh"
 case_ deny  coder  Bash "echo x > crates/a.rs; .claude/rules/check.sh HEAD; cp /tmp/y .claude/rules/sgconfig.yml"
 case_ deny  coder  Bash "ast-grep -p 'x.unwrap()' -r 'x?' -U crates/"
 case_ allow coder  Bash "ast-grep -l rust -p '\$X.unwrap()' crates/ | grep -i lemma"

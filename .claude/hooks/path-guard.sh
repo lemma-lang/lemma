@@ -375,7 +375,8 @@ if [ "$role" = "coder" ]; then
   # A setup script in command position is run, not written (the coder runs check.sh
   # before handing in); dropping its name leaves a real write into .claude/ in view.
   strip_runs() {
-    sed -E 's#(^|[;&|(][[:space:]]*)(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*)("?[^[:space:];&|()"]*/)?\.claude/(rules|tools|hooks/tests)/[A-Za-z0-9_.-]+\.sh"?#\1\2#g'
+    awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }' \
+      | sed -E 's#(^|[;(]|&&|\|\||[^>]\||[^>]&)([[:space:]]*)(([A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./~$:-]*[[:space:]]+)*)("?[A-Za-z0-9_./~$-]*/)?\.claude/(rules|tools|hooks/tests)/[A-Za-z0-9_.-]+\.sh"?([[:space:];&|)]|$)#\1\2\3\7#g'
   }
   cmd_examined=$(printf '%s' "$cmd" | strip_reads | strip_runs)
   code_examined=$(printf '%s' "$code" | strip_reads)
