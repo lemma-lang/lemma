@@ -67,7 +67,9 @@ Method:
 3. **Search before writing.** For each rule to prove, first look for a test that already proves
    it. If one exists, extend it (one more case in its table) instead of writing a second one.
 4. Write the cases: the nominal path, the edge cases, the expected errors (with their location).
-   One test per behavior, with a name that describes the behavior.
+   One test per behavior, with a name that describes the behavior. Write files with `Write` and
+   `Edit`, not through the shell; a fixture whose bytes those tools cannot write (an invalid
+   UTF-8 byte) is the exception, with `printf` in a command of its own.
 5. **Run what you wrote**, only that: `cargo test -p <crate> --lib <module>::tests`,
    `cargo test -p <crate> --test <file>`. Report the real output. In Rust, the expected red for a
    surface that does not exist yet is **a compile error**, `error[E0425]: cannot find function` or
@@ -76,7 +78,8 @@ Method:
    assertions have not bitten yet. For a surface that exists, expect an assertion failure.
 6. Before handing in, run `cargo fmt --all` then `git status --porcelain`: only your files may
    have moved (the tree was clean before you; if a production file moved, restore it with
-   `git checkout -- <that file>` and say so). Then `.claude/rules/check.sh HEAD`: on your lines
+   `git checkout -- <that file>` and say so). Then `.claude/rules/check.sh HEAD`, as a command of
+   its own: on your lines
    only, it flags logic in a test, comments in a body, the ticket key and nesting in helpers. Fix
    every "new" finding, then run your tests again.
 
