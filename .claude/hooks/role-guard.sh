@@ -230,25 +230,42 @@ Run the command against the main checkout or a worktree the main session created
 "Command refused: no pipe, &, redirection, backslash, \$ or control character, and you are $role.
 Run the read alone; its whole output comes back to you." ;;
   esac
-  case "$plain_line" in
+  # git and cargo see the words with their quotes removed: judge that text, not the quoted one.
+  bare_line=$(printf '%s' "$plain_line" | tr -d "\"'")
+  case "$bare_line" in
     "just "*)
-      printf '%s' "$plain_line" | grep -Eq '^just [A-Za-z0-9_-]+$' || refuse \
+      printf '%s' "$bare_line" | grep -Eq '^just [A-Za-z0-9_-]+$' || refuse \
 "Command refused: just runs every recipe it is given, one recipe per call, and you are $role." ;;
+    "cargo "*|"RUSTDOCFLAGS=-D warnings cargo "*)
+      case " $bare_line" in
+        *" --config"*|*" -Z"*) refuse \
+"Command refused: cargo --config and -Z can run any program, and you are $role." ;;
+      esac ;;
     "git "*)
-      case "$plain_line" in
-        *--upl*|*--output*|*--exec*|*--receive-pack*) refuse \
-"Command refused: this git option runs a command or writes a file, and you are $role." ;;
+      case "$bare_line" in
+        *--upl*|*--out*|*--ex*|*--rec*|"git fetch-"*) refuse \
+"Command refused: this git option or command runs a program or writes a file, and you are $role." ;;
       esac
-      case "$plain_line" in
-        "git branch "*)
-          printf '%s ' "${plain_line#git branch}" | grep -Eq -- ' (-[A-Za-z]*[dDmMcCfu]|--(delete|move|copy|force|set-upstream|unset-upstream|edit-description|track))' && refuse \
-"Command refused: git branch only lists here, and you are $role." ;;
+      case "$bare_line" in
+        "git branch"|"git branch "*)
+          branch_words=${bare_line#git branch}
+          listing=0
+          for word in $branch_words; do
+            case "$word" in
+              -[arvl]|-[arvl][arvl]|-[arvl][arvl][arvl]|--list|--all|--remotes|--verbose|--show-current|\
+              --format=*|--sort=*|--contains=*|--no-contains=*|--merged=*|--no-merged=*|--points-at=*) ;;
+              --contains|--no-contains|--merged|--no-merged|--points-at) listing=1 ;;
+              -*) refuse "Command refused: git branch only lists here (\"$word\" is not a listing option), and you are $role." ;;
+              *) [ "$listing" -eq 1 ] || case " $branch_words " in *" -l "*|*" --list "*) ;; *) refuse \
+"Command refused: git branch with a name creates a branch, and you are $role." ;; esac ;;
+            esac
+          done ;;
         "git symbolic-ref "*)
-          printf '%s' "$plain_line" | grep -Eq '^git symbolic-ref( (--short|-q|--quiet))* [^ -][^ ]*$' || refuse \
+          printf '%s' "$bare_line" | grep -Eq '^git symbolic-ref( (--short|-q|--quiet))* [^ -][^ ]*$' || refuse \
 "Command refused: git symbolic-ref only reads here, one reference, and you are $role." ;;
-        "git fetch"*)
-          case "$plain_line" in *:*) refuse \
-"Command refused: a refspec writes local references, git fetch only updates the remote ones here, and you are $role." ;;
+        "git fetch"|"git fetch "*)
+          case "$bare_line" in *:*|*" -P"*|*--prune-t*|*--se*|*--refm*) refuse \
+"Command refused: this git fetch writes local references, tags or configuration, and you are $role." ;;
           esac ;;
       esac ;;
   esac
