@@ -215,6 +215,70 @@ Run the command against the main checkout or a worktree the main session created
           head_line="just ${path_arg##*/}$rest_arg" ;;
       esac ;;
   esac
+  # The allowlist judges a prefix, so the rest of the line is held to plain words, judged on the
+  # raw text: the only shell syntax left is a final <<'EOF' whose terminator ends the command.
+  plain_line=$head_line
+  case "$head_line" in
+    *" <<'EOF'")
+      plain_line=${head_line%" <<'EOF'"}
+      [ "$(printf '%s\n' "$cmd_issues" | tail -n 1)" = "EOF" ] \
+        && [ "$(printf '%s\n' "$cmd_issues" | grep -cx 'EOF')" -eq 1 ] || refuse \
+"Command refused: the heredoc must end the command, with a single EOF line, and you are $role." ;;
+  esac
+  case "$plain_line" in
+    *'|'*|*'&'*|*'>'*|*'<'*|*'\'*|*'$'*|*[[:cntrl:]]*) refuse \
+"Command refused: no pipe, &, redirection, backslash, \$ or control character, and you are $role.
+Run the read alone; its whole output comes back to you." ;;
+  esac
+  # An unquoted glob or brace is expanded by the shell after this guard has judged the line;
+  # gh's own {owner}, {repo} and {branch} placeholders are the only braces left alone.
+  case "$(printf '%s' "$plain_line" | sed -E -e "s/'[^']*'|\"[^\"]*\"//g" -e 's/\{(owner|repo|branch)\}//g')" in
+    *'*'*|*'?'*|*'['*|*'{'*|*'}'*|*"'"*|*'"'*) refuse \
+"Command refused: an unquoted glob or brace, or an unbalanced quote, and you are $role. Quote the pattern." ;;
+  esac
+  # git and cargo see the words with their quotes removed: judge that text, not the quoted one.
+  bare_line=$(printf '%s' "$plain_line" | tr -d "\"'")
+  case "$bare_line" in
+    "just "*)
+      printf '%s' "$bare_line" | grep -Eq '^just [A-Za-z0-9_-]+$' || refuse \
+"Command refused: just runs every recipe it is given, one recipe per call, and you are $role." ;;
+    "cargo "*|"RUSTDOCFLAGS=-D warnings cargo "*)
+      case " $bare_line " in
+        *" --config"*|*" -Z"*|*" -- "*|*" --target-dir"*|*" --manifest-path"*) refuse \
+"Command refused: this cargo option runs a program, writes outside target/ or builds another crate, and you are $role." ;;
+      esac ;;
+    "typos"|"typos "*)
+      case "$bare_line" in *--dump*|*--write*|*" -w"*) refuse \
+"Command refused: this typos option writes a file, and you are $role." ;;
+      esac ;;
+    "git "*)
+      case "$bare_line" in
+        *--upl*|*--out*|*--ex*|*--rec*|"git fetch-"*) refuse \
+"Command refused: this git option or command runs a program or writes a file, and you are $role." ;;
+      esac
+      case "$bare_line" in
+        "git branch"|"git branch "*)
+          branch_words=${bare_line#git branch}
+          listing=0
+          for word in $branch_words; do
+            case "$word" in
+              -[arvl]|-[arvl][arvl]|-[arvl][arvl][arvl]|--list|--all|--remotes|--verbose|--show-current|\
+              --format=*|--sort=*|--contains=*|--no-contains=*|--merged=*|--no-merged=*|--points-at=*) ;;
+              --contains|--no-contains|--merged|--no-merged|--points-at) listing=1 ;;
+              -*) refuse "Command refused: git branch only lists here (\"$word\" is not a listing option), and you are $role." ;;
+              *) [ "$listing" -eq 1 ] || case " $branch_words " in *" -l "*|*" --list "*) ;; *) refuse \
+"Command refused: git branch with a name creates a branch, and you are $role." ;; esac ;;
+            esac
+          done ;;
+        "git symbolic-ref "*)
+          printf '%s' "$bare_line" | grep -Eq '^git symbolic-ref( (--short|-q|--quiet))* [^ -][^ ]*$' || refuse \
+"Command refused: git symbolic-ref only reads here, one reference, and you are $role." ;;
+        "git fetch"|"git fetch "*)
+          case "$bare_line" in *:*|*" -P"*|*" -"[!-]*P*|*--prune-t*|*--se*|*--refm*|*--dep*|*--sha*|*--unsh*|*" tag "*|*" tag") refuse \
+"Command refused: this git fetch writes local references, tags or configuration, and you are $role." ;;
+          esac ;;
+      esac ;;
+  esac
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the
   # squash flag, not the "-s" inside "--state".
   padded=" $head_line "
