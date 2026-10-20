@@ -215,6 +215,30 @@ Run the command against the main checkout or a worktree the main session created
           head_line="just ${path_arg##*/}$rest_arg" ;;
       esac ;;
   esac
+  # The allowlist judges a prefix, so whatever follows it must stay a read: one final pipe into
+  # tail, head, grep or wc, descriptor duplications and /dev/null; no other pipe, & or >.
+  shape=$(printf '%s' "$head_line" | sed -E -e "s/'[^']*'//g" -e 's/"[^"]*"//g' \
+    -e 's/[[:space:]]*\|[[:space:]]*(tail|head|grep|wc)([[:space:]]+[^|&<>;]*)?$//' \
+    -e 's/[0-9]*>&([0-9]+|-)([^A-Za-z0-9_./~-]|$)/\2/g' -e 's#[0-9]*>[[:space:]]*/dev/null##g')
+  case "$shape" in
+    *'|'*|*'&'*|*'>'*) refuse \
+"Command refused: a pipe, a background & or a redirection, and you are $role.
+Only one final pipe into tail, head, grep or wc is allowed, after a read." ;;
+  esac
+  # just runs every recipe named on the line: one recipe, no argument.
+  case "$shape" in
+    "just "*)
+      printf '%s' "$shape" | grep -Eq '^just[[:space:]]+[A-Za-z0-9_-]+[[:space:]]*$' || refuse \
+"Command refused: just runs every recipe it is given, one recipe per call, and you are $role." ;;
+  esac
+  # git options that run a command or write a file, whatever the subcommand.
+  case "$shape" in
+    "git "*)
+      case " $shape " in
+        *" --upload-pack"*|*" --output"*|*" --exec"*|*" --receive-pack"*) refuse \
+"Command refused: this git option runs a command or writes a file, and you are $role." ;;
+      esac ;;
+  esac
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the
   # squash flag, not the "-s" inside "--state".
   padded=" $head_line "
