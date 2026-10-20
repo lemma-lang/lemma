@@ -181,15 +181,16 @@ Run a single command per call." ;;
   # "git -C <worktree> …" and "just <worktree>/<recipe> …" are judged as the bare command.
   worktree_of() { # $1 = path → its physical path when git lists it as a worktree, else nothing
     local physical listed
-    physical=$(cd -P "$cwd" 2>/dev/null && cd -P "$1" 2>/dev/null && pwd -P) || return 0
+    [ -n "$1" ] || return 0
+    physical=$(cd -P -- "$cwd" 2>/dev/null && cd -P -- "$1" 2>/dev/null && pwd -P) || return 0
     git -C "$cwd" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' \
       | while IFS= read -r listed; do
-          [ "$(cd -P "$listed" 2>/dev/null && pwd -P)" = "$physical" ] && printf '%s' "$physical"
+          [ "$(cd -P -- "$listed" 2>/dev/null && pwd -P)" = "$physical" ] && printf '%s' "$physical"
         done
   }
   split_path() { # $1 = text starting with a path, plain or double-quoted → sets path_arg and rest_arg
     case "$1" in
-      \"*) path_arg=${1#\"}; path_arg=${path_arg%%\"*}; rest_arg=${1#\"$path_arg\"} ;;
+      \"*) rest_arg=${1#\"}; path_arg=${rest_arg%%\"*}; rest_arg=${rest_arg#"$path_arg"}; rest_arg=${rest_arg#\"} ;;
       *) path_arg=${1%%[[:space:]]*}; rest_arg=${1#"$path_arg"} ;;
     esac
   }

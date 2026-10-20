@@ -379,6 +379,11 @@ case_ deny  pr-reviewer Bash "just $wt_copy/link/../check" "$wt_main"
 case_ deny  pr-reviewer Bash "git -C \"$wt_copy/	 log\" push origin HEAD" "$wt_main"
 case_ deny  pr-reviewer Bash "git -C $wt_copy -C $wt_stray log" "$wt_main"
 case_ deny  pr-reviewer Bash "git -C $wt_copy -c core.pager=sh log" "$wt_main"
+git -C "$wt_main" worktree add -q --detach "$tmp/wt-a*[b]"
+case_ allow pr-reviewer Bash "git -C \"$tmp/wt-a*[b]\" log" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C \"$tmp/wt-a*[b]\" push \"b\" log" "$wt_main"
+case_ deny  pr-reviewer Bash "just /check" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C -L log" "$wt_main"
 
 # --- Renamed roles: the old names are no longer GitHub roles ---------------------
 case_ deny  mr-reviewer Bash "gh pr merge 7 --squash --match-head-commit 0123abc"
