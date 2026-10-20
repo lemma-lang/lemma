@@ -44,7 +44,8 @@ The prototype grammar is in [docs/grammar.md](docs/grammar.md).
 - **Nothing implicit**: floating-point reassociation and contraction, overflow and traps are opt-in.
 - **Hash-addressed functions**, keyed by their AST.
 - **Typed CPU resources**, like memory: cores, caches, vector units (see [docs/design.md](docs/design.md)).
-- **Two levels of effects**: static and free for compute kernels, runtime-reversible (Cordis paradigm) for hot-reloaded components.
+- **Two levels of effects**: static and free for compute kernels; runtime-reversible effects
+  (Cordis paradigm) for hot-reloaded stateful components are a future direction, not designed yet.
 
 ## Development loop
 
