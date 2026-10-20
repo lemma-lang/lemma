@@ -2,6 +2,8 @@
 
 - Status: accepted
 - Date: 2026-10-19
+- Amended: 2026-10-20, one sentence added under C1 extending it to the universal quantifier,
+  approved by the maintainer; see ADR 0008
 
 ## Context
 
@@ -300,6 +302,8 @@ the spec and in the impl alike (P2):
 
 Token counts per occurrence are close, and decide only the last tie. **Default on a tie: A.** The
 reader is a model, and in code, familiarity wins.
+The universal quantifier follows the same choice, `∀` (U+2200 FOR ALL) under U and `forall` under
+A, selected by the same switch, so the calibration kernels must use it too.
 
 **C2. The rendering of diagnostics the model is shown**:
 
