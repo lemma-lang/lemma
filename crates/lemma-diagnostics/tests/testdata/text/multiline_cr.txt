@@ -1,0 +1,6 @@
+error[unexpected-token]: a message
+ --> case.lm:3:3
+  |
+3 |   eff pure
+  |   ^^^^^^^^
+  = span ends: 5:3

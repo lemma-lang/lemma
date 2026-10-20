@@ -1,0 +1,6 @@
+error[equiv-without-allow]: a message
+ --> case.lm:1:4
+  |
+1 | fn f(n: u64, k: u64) -> u64
+  |    ^
+  = repair: replace case.lm:1:28-1:28 with " allow()"

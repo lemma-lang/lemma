@@ -1,0 +1,7 @@
+error[semicolon]: quote " backslash \ lf \n tab \t soh \u0001 del 
+ --> case.lm:1:4
+  |
+1 | fn f(n: u64, k: u64) -> u64
+  |    ^
+  = related: case.lm:1:6-1:7: a\tb
+  = repair: replace case.lm:1:4-1:5 with "a\"b\\c\nd\u0001"

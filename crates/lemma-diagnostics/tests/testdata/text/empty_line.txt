@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+ --> case.lm:4:1
+  |
+4 |
+  | ^

@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+ --> dup.lm:1:1
+  |
+1 | first line
+  | ^^^^^

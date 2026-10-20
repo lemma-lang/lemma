@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+  --> case.lm:10:3
+   |
+10 |   next value = x
+   |   ^^^^

@@ -1,0 +1,5 @@
+error[unexpected-token]: a message
+ --> case.lm:1:5
+  |
+1 | fn f(n: u64, k: u64) -> u64
+  |     ^

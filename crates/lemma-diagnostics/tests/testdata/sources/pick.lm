@@ -1,0 +1,8 @@
+export fn pick(n: u64, k: u64, a: &f32[n] @a4 ro) -> f32
+  eff pure
+  req k < n
+  spec a[k]
+  equiv allow()
+  impl {
+    return a[k]
+  }

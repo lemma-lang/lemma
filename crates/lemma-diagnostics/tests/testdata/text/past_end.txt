@@ -1,0 +1,3 @@
+error[unexpected-token]: a message
+  --> case.lm:10:10
+   = span ends: 10:30
