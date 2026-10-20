@@ -137,6 +137,13 @@ case_ allow tester Bash "cargo insta accept"
 case_ allow tester Bash "INSTA_UPDATE=always cargo test -p lemma-codegen"
 case_ deny  debugger Bash "cargo insta accept"
 case_ allow coder  Bash "cargo test --workspace 2>&1 | tail -20"
+# `>&` duplicates a descriptor only when a number or `-` follows; `>&word` writes a file.
+case_ allow coder  Bash "echo done >&2"
+case_ allow coder  Bash "cargo build 2>&- | tail -5"
+case_ allow coder  Bash "cargo test 3>&1 1>&2 2>&3 | tail -5"
+case_ deny  coder  Bash "echo pwned >&.claude/rules/check.sh"
+case_ deny  coder  Bash "echo x >&crates/lemma-syntax/tests/parse.rs"
+case_ deny  coder  Bash "echo x >&2crates/lemma-syntax/tests/parse.rs"
 case_ allow coder  Bash "grep -n 'fn parse() -> Ast' crates/lemma-syntax/src/tests.rs 2>/dev/null"
 case_ allow coder  Bash "cargo fmt --all"
 case_ deny  coder  Bash "echo x > crates/lemma-codegen/src/tests.rs"
@@ -207,6 +214,8 @@ case_ allow devsecops Bash "cargo update --dry-run"
 case_ deny  devsecops Bash "cargo update"
 case_ allow devsecops Bash "cargo deny check 2>&1 | tee .claude/security/deny.log"
 case_ deny  devsecops Bash "echo x > deny.toml"
+case_ allow devsecops Bash "cargo deny check >&2"
+case_ deny  devsecops Bash "echo x >&deny.toml"
 
 # --- Prose is data: heredoc bodies and quoted strings are not commands ------------
 case_ allow committer Bash $'git commit -F - <<\'EOF\'\nstyle: apply cargo fmt\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF'

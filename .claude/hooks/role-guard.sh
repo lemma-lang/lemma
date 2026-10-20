@@ -432,7 +432,7 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
     *) exit 0 ;;
   esac
   # The code part only: `grep -n "cargo install" .github/workflows/ci.yml` installs nothing.
-  cmd_examined=$(printf '%s' "$code" | sed -e 's/[0-9]*>&[0-9-]*//g' \
+  cmd_examined=$(printf '%s' "$code" | sed -E -e 's/[0-9]*>&([0-9]+|-)([^A-Za-z0-9_./~-]|$)/\2/g' \
     -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g')
   if [ -n "$own" ]; then
     own_re=$(printf '%s' "$own" | sed -e 's/\./\\./g')

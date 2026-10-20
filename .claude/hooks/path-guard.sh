@@ -371,7 +371,8 @@ if [ "$role" = "coder" ]; then
   # The write token is looked for in the code part only (a ">" inside a grep
   # pattern writes nothing); the target, in the whole command, since a path
   # written to can be quoted.
-  strip_reads() { sed -e 's/[0-9]*>&[0-9-]*//g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g'; }
+  # Only `>&` followed by a descriptor or `-` duplicates; `>&word` writes the file word.
+  strip_reads() { sed -E -e 's/[0-9]*>&([0-9]+|-)([^A-Za-z0-9_./~-]|$)/\2/g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g'; }
   cmd_examined=$(printf '%s' "$cmd" | strip_reads)
   code_examined=$(printf '%s' "$code" | strip_reads)
   case "$code_examined" in
