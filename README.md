@@ -35,8 +35,9 @@ The prototype grammar is in [docs/grammar.md](docs/grammar.md).
 - **Types carry memory layout**: vector width, alignment, bounds (`i: u64 < n`).
 - **Explicit effects**: `pure`, `ro`, `wo`, disjoint regions. No alias analysis guesswork.
 - **Separate spec / impl**, equivalence proven by SMT (Z3).
-- **The spec is for people**: a reader checks *what* a function computes in one line; the proof
-  guarantees the optimized impl agrees, so nobody has to read it.
+- **The spec is what gets reviewed**: one line says *what* a function computes; the proof
+  guarantees the optimized impl matches it, exactly or within the relaxations its `allow` list
+  names, so the impl itself needs no review.
 - **A wrong spec is caught too**: an independent model reviews each contract against the task, and the
   spec is executed against test vectors ([ADR 0006](docs/adr/0006-optimized-for-its-writer.md)).
 - **Every surface optimized for the models that write and read it**, not for human taste.
