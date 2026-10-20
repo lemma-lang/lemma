@@ -24,6 +24,10 @@
 
 set -uo pipefail
 
+# Byte semantics: under a UTF-8 locale, cut and awk fail on a changed file that
+# is not valid UTF-8 (a test fixture can be one on purpose) and lose its lines.
+export LC_ALL=C
+
 fail() { printf 'check.sh: %s\n' "$1" >&2; exit 2; }
 
 [ $# -eq 1 ] || fail "usage: check.sh <reference> (HEAD for a pass, the merge-base for a review)"
