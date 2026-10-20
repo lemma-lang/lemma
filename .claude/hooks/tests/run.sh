@@ -281,7 +281,7 @@ case_ deny  coder  Bash $'cat <<X\nX\necho x > crates/lemma-syntax/src/tests.rs\
 case_ deny  coder  Bash $'cat <<EOF\n$(echo x > crates/lemma-syntax/src/tests.rs)\nEOF'
 case_ allow coder  Bash $'cat <<\'EOF\'\n$(echo x > crates/lemma-syntax/src/tests.rs)\nEOF'
 case_ allow coder  Bash $'cat <<EOF\ncargo insta accept\nEOF'
-case_ allow committer Bash $'git commit -m "$(cat <<\'EOF\'\nstyle: apply cargo fmt\nEOF\n)"'
+case_ deny  committer Bash $'git commit -m "$(cat <<\'EOF\'\n)\n$(gh issue close 3)\nEOF\n)"'
 
 # --- gh: who may call it at all ------------------------------------------------
 case_ deny  coder Bash "gh issue list"

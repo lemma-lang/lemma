@@ -39,19 +39,17 @@ cwd=${cwd%/}
 # The lines the shell runs as commands. A heredoc body is dropped only in the
 # shape the roles use, where bash and this check cannot read the command
 # differently: a single heredoc opened at the end of the first line, that line
-# holding plain words and simple quotes only, its terminator closing the
-# command (or followed by the `)"` of `"$(cat <<'EOF'`); with an unquoted
-# delimiter, the body holds no `$`, backquote or backslash, which bash would
-# expand and could run. Any other shape keeps every line, so that a doubt
-# costs a refusal, never a hidden command.
+# holding plain words and simple quotes only, its terminator the last line;
+# with an unquoted delimiter, the body holds no `$`, backquote or backslash,
+# which bash would expand and could run. Any other shape keeps every line, so
+# that a doubt costs a refusal, never a hidden command. `"$(cat <<'EOF'` is not
+# that shape: bash 3.2 ends the substitution at a `)` inside the body.
 outside_heredocs() { # stdin = command → stdout
   awk '
     { lines[NR] = $0 }
     END {
-      head = lines[1]; closer = ""
-      if (match(head, /[ \t]"\$\(cat <<(\047[A-Za-z_]+\047|[A-Za-z_]+)$/)) {
-        prefix = substr(head, 1, RSTART - 1); word = substr(head, RSTART + 10); closer = ")\""
-      } else if (match(head, /[ \t]<<(\047[A-Za-z_]+\047|"[A-Za-z_]+"|[A-Za-z_]+)$/)) {
+      head = lines[1]
+      if (match(head, /[ \t]<<(\047[A-Za-z_]+\047|"[A-Za-z_]+"|[A-Za-z_]+)$/)) {
         prefix = substr(head, 1, RSTART - 1); word = substr(head, RSTART + 3)
       } else word = ""
       expands = (word != "" && word !~ /["\047]/)
@@ -62,7 +60,7 @@ outside_heredocs() { # stdin = command → stdout
         if (lines[i] == word) terminator = i
         else if (expands && lines[i] ~ /[$`\\]/) plain = 0
       }
-      if (plain && terminator && (closer == "" ? terminator == NR : terminator == NR - 1 && lines[NR] == closer)) {
+      if (plain && terminator == NR) {
         print head
         exit
       }
