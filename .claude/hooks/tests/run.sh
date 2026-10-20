@@ -456,6 +456,25 @@ frozen_case 1 "bound dropped on a continuation line of the signature" 's/k: u64 
 frozen_case 1 "second line of a req changed" 's/&& n < 1000/\&\& n < 2000/'
 frozen_case 1 "equiv permissions changed" 's/allow\(\)/allow(fp_reassoc)/'
 frozen_case 1 "new function in an untracked file" 's/^//' extra.lm
+frozen_case 0 "comment added inside the contract" 's|^  spec a\[k\]$|  spec a[k] // the element|'
+frozen_case 0 "export moved to its own line" 's/^export fn get/export\
+fn get/'
+frozen_case 1 "export dropped" 's/^export fn get/fn get/'
+frozen_case 1 "clause written after the impl" '$a\
+  req n > 1'
+
+frozen_move() { # $1 = description, $2 = new path ("" deletes the file)
+  local got
+  printf '%s\n' "$original" > "$frozen/examples/get.lm"
+  if [ -n "$2" ]; then mv "$frozen/examples/get.lm" "$frozen/examples/$2"; else rm "$frozen/examples/get.lm"; fi
+  (cd "$frozen" && "$root/.claude/tools/frozen-check.sh" "$frozen_ref" >/dev/null 2>&1)
+  got=$?
+  [ -z "$2" ] || rm -f "$frozen/examples/$2"
+  printf '%s\n' "$original" > "$frozen/examples/get.lm"
+  if [ "$got" = 1 ]; then pass=$((pass + 1)); else failed=$((failed + 1)); echo "FAIL  exit 1 got $got  frozen-check: $1"; fi
+}
+frozen_move "file deleted" ""
+frozen_move "file renamed to a name with a space" "get copy.lm"
 
 printf '%s passed, %s failed\n' "$pass" "$failed"
 [ "$failed" -eq 0 ]
