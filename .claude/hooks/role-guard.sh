@@ -230,10 +230,11 @@ Run the command against the main checkout or a worktree the main session created
 "Command refused: no pipe, &, redirection, backslash, \$ or control character, and you are $role.
 Run the read alone; its whole output comes back to you." ;;
   esac
-  # An unquoted glob is expanded by the shell after this guard has judged the line.
-  case "$(printf '%s' "$plain_line" | sed -E "s/'[^']*'|\"[^\"]*\"//g")" in
-    *'*'*|*'?'*|*'['*|*"'"*|*'"'*) refuse \
-"Command refused: an unquoted glob or an unbalanced quote, and you are $role. Quote the pattern." ;;
+  # An unquoted glob or brace is expanded by the shell after this guard has judged the line;
+  # gh's own {owner}, {repo} and {branch} placeholders are the only braces left alone.
+  case "$(printf '%s' "$plain_line" | sed -E -e "s/'[^']*'|\"[^\"]*\"//g" -e 's/\{(owner|repo|branch)\}//g')" in
+    *'*'*|*'?'*|*'['*|*'{'*|*'}'*|*"'"*|*'"'*) refuse \
+"Command refused: an unquoted glob or brace, or an unbalanced quote, and you are $role. Quote the pattern." ;;
   esac
   # git and cargo see the words with their quotes removed: judge that text, not the quoted one.
   bare_line=$(printf '%s' "$plain_line" | tr -d "\"'")
@@ -273,7 +274,7 @@ Run the read alone; its whole output comes back to you." ;;
           printf '%s' "$bare_line" | grep -Eq '^git symbolic-ref( (--short|-q|--quiet))* [^ -][^ ]*$' || refuse \
 "Command refused: git symbolic-ref only reads here, one reference, and you are $role." ;;
         "git fetch"|"git fetch "*)
-          case "$bare_line" in *:*|*" -P"*|*" -"[!-]*P*|*--prune-t*|*--se*|*--refm*|*--dep*|*--sha*|*--unsh*) refuse \
+          case "$bare_line" in *:*|*" -P"*|*" -"[!-]*P*|*--prune-t*|*--se*|*--refm*|*--dep*|*--sha*|*--unsh*|*" tag "*|*" tag") refuse \
 "Command refused: this git fetch writes local references, tags or configuration, and you are $role." ;;
           esac ;;
       esac ;;
