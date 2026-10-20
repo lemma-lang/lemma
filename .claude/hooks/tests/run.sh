@@ -416,5 +416,46 @@ check deny "coder writes a custom test path under a parent .claude/" \
 check allow "coder writes production code under a parent .claude/" \
   "$(event coder Write "$nest/src/lib.rs" "$nest/src")"
 
+# --- frozen-check.sh: a contract is everything from fn to impl ------------------
+frozen="$tmp/frozen"
+mkdir -p "$frozen/.claude" "$frozen/examples"
+cp "$root/.claude/test-paths.txt" "$frozen/.claude/"
+git -C "$frozen" init -q
+cat > "$frozen/examples/get.lm" <<'LM'
+// Element k of a.
+export fn get(n: u64,
+              a: &f32[n] @a4 ro,
+              k: u64 < n) -> f32
+  eff pure
+  req n > 0
+    && n < 1000
+  spec a[k]
+  equiv allow()
+  impl {
+    return a[k]
+  }
+LM
+git -C "$frozen" add -A
+git -C "$frozen" -c user.name=t -c user.email=t@t commit -qm base
+frozen_ref=$(git -C "$frozen" rev-parse HEAD)
+original=$(cat "$frozen/examples/get.lm")
+
+frozen_case() { # $1 = expected exit status, $2 = description, $3 = sed expression, [$4 = extra file]
+  local got
+  printf '%s\n' "$original" | sed -E "$3" > "$frozen/examples/get.lm"
+  [ -z "${4:-}" ] || printf 'fn extra(n: u64) -> u64\n  eff pure\n  spec n\n  equiv allow()\n  impl {\n    return n\n  }\n' > "$frozen/examples/$4"
+  (cd "$frozen" && "$root/.claude/tools/frozen-check.sh" "$frozen_ref" >/dev/null 2>&1)
+  got=$?
+  rm -f "$frozen/examples/extra.lm"
+  if [ "$got" = "$1" ]; then pass=$((pass + 1)); else failed=$((failed + 1)); echo "FAIL  exit $1 got $got  frozen-check: $2"; fi
+}
+frozen_case 0 "unchanged" 's/^//'
+frozen_case 0 "impl changed only" 's/return a\[k\]/return a[k] * 1.0/'
+frozen_case 0 "comment and layout of the contract changed" 's|^// Element k of a.|// Read one element.|; s/^  spec a\[k\]$/  spec   a[k]/'
+frozen_case 1 "bound dropped on a continuation line of the signature" 's/k: u64 < n\)/k: u64)/'
+frozen_case 1 "second line of a req changed" 's/&& n < 1000/\&\& n < 2000/'
+frozen_case 1 "equiv permissions changed" 's/allow\(\)/allow(fp_reassoc)/'
+frozen_case 1 "new function in an untracked file" 's/^//' extra.lm
+
 printf '%s passed, %s failed\n' "$pass" "$failed"
 [ "$failed" -eq 0 ]

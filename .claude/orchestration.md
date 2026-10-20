@@ -632,22 +632,23 @@ context is polluted.
    `git branch --show-current`. If it is `main`, **stop**: launch the `ticket-brancher` first, or
    ask the user whether writing directly is intended.
 4. **Check between the `tester` and the `coder`: tests and specs are frozen.** After the coder's
-   pass, run `.claude/tools/frozen-check.sh <tests-commit>` (exit 0 frozen, 1 moved). It runs,
-   against the working tree and untracked files included:
+   pass, run `.claude/tools/frozen-check.sh <tests-commit>` (exit 0 frozen, 1 moved). Against the
+   working tree, untracked files included, it checks three things:
    ```bash
-   git diff --stat <tests-commit> -- <test paths>
-   git diff <tests-commit> | grep -E '^-[[:space:]]*(#\[cfg\(test\)\]|mod tests;)'
-   git diff <tests-commit> -- '*.lm' | grep -E '^[-+][[:space:]]*((export[[:space:]]+)?fn|spec|req|ens|eff|equiv)([[:space:]]|$)'
+   git diff --stat <tests-commit> -- <test paths>                  # 1. the test files
+   git diff <tests-commit> | grep -E '^-[[:space:]]*(#\[cfg\(test\)\]|mod tests;)'   # 2. the wiring
+   # 3. the contract of every .lm function, from its fn line to its impl line
    ```
    The first covers the test files the commit froze; the second a removed wiring line, in a
-   production file the coder otherwise edits freely; the third the contract of every `.lm` file
-   (its clauses, and the `fn` signature line, which carries the types and their bounds), which the
-   coder can write (the impl lives beside the spec) but must not change. A new function shows as
-   added `fn` and clause lines, and `frozen-check.sh` exits 1 on it too: you read its hunks, and
-   accept it only if the plan's step called for that function. A clause
-   spanning several lines shows only its first line here: read the `.lm` hunks of the diff in
-   full. **If any of the three is non-empty, except for a new function accepted as above, the pass is
-   rejected**: restore from that commit
+   production file the coder otherwise edits freely; the third the contract of every `.lm`
+   function: the signature with its types and bounds, and the `spec`, `req`, `ens`, `eff` and
+   `equiv` clauses, which the coder can write (the impl lives beside the spec) but must not
+   change. It compares each function's contract with comments removed and whitespace collapsed,
+   so a signature or a clause spread over several lines is covered whole, and a pure layout change
+   is not a move. A new function shows as a new contract, and `frozen-check.sh` exits 1 on it too:
+   you read it, and accept it only if the plan's step called for that function. **If any of the
+   three moved, except for a new function accepted as above, the pass is rejected**: restore from
+   that commit
    (`git checkout <tests-commit> -- <paths>`, or the spec lines by hand) and relaunch the coder,
    telling it so. The guard covers the tests, not the specs, and the shell imperfectly: this check
    is what proves it, and it costs a second. If one day it bites, that is information of the first
