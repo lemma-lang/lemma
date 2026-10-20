@@ -151,7 +151,8 @@ What a reader needs to read it:
 ## Two levels of effects
 
 1. **Compute kernels**: static, proven effects with zero runtime cost. A `pure` function is trivially reversible.
-2. **Components**: reversible effects and reactive coeffects (Cordis paradigm). Every acquired resource records its inverse.
+2. **Components** (future direction, not designed: no ADR, outside the prototype, and not yet
+   covered by [ADR 0002](adr/0002-scope.md)): reversible effects and reactive coeffects (Cordis paradigm). Every acquired resource records its inverse.
    Hot reload cleanly tears down the old version, and dependents are deactivated then reactivated.
 
 Reference: *A Programming Paradigm for Spatiotemporal Composability*, arXiv 2608.25512.
