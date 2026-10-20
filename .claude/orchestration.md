@@ -339,8 +339,8 @@ the role requesting them (the `agent_type` of the event):
 | `ticket-brancher`, `committer`, `auditor`, `researcher` | nothing at all: no write tool | `tools:` |
 | `ticket-reader` | no file; in the shell, only `gh` and `git` reads | `role-guard.sh` |
 | `ticket-writer` | no file except drafts in `.claude/tmp/`; in the shell, a closed list of `gh` commands (`gh issue view/list/create/edit/comment`, `gh label list/create`, `gh api` GETs, comment PATCH); no assignee | `role-guard.sh` |
-| `pr-writer` | no file except drafts in `.claude/tmp/`; in the shell, `gh pr view/list/create/edit/comment` (`create` only with `--head`, never `--dry-run`) and `git` reads | `role-guard.sh` |
-| `pr-reviewer` | outside `.claude/reviews/pr/`; in the shell, `gh pr view/list/diff/checks/comment/merge`, `gh run list/view/watch`, `git` reads, and the checks (`just check` and its read-only recipes, `cargo fmt --check`, `cargo clippy`, `cargo nextest run`, `cargo test`, `cargo doc`, `cargo deny check`, `cog check`); a merge only with `--squash` or `--rebase` and `--match-head-commit`; never `--admin`, `--auto`, `--yes`, `--force` or `--fix` | `role-guard.sh` |
+| `pr-writer` | no file except drafts in `.claude/tmp/`; in the shell, `gh pr view/list/create/edit/comment` (`create` only with `--head`, never `--dry-run`) and `git` reads, also as `git -C <worktree>` | `role-guard.sh` |
+| `pr-reviewer` | outside `.claude/reviews/pr/`; in the shell, `gh pr view/list/diff/checks/comment/merge`, `gh run list/view/watch`, `git` reads, and the checks (`just check` and its read-only recipes, `cargo fmt --check`, `cargo clippy`, `cargo nextest run`, `cargo test`, `cargo doc`, `cargo deny check`, `cog check`), aimed at a registered worktree with `git -C <worktree>` and `just <worktree>/<recipe>`; a merge only with `--squash` or `--rebase` and `--match-head-commit`; never `--admin`, `--auto`, `--yes`, `--force` or `--fix` | `role-guard.sh` |
 
 For **every** subagent, whatever its name:
 

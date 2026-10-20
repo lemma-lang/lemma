@@ -349,6 +349,27 @@ case_ allow pr-reviewer Bash "git rev-parse HEAD"
 case_ deny  pr-reviewer Bash "npm test"
 case_ allow pr-reviewer Write "$R/.claude/reviews/pr/7.md"
 case_ deny  pr-reviewer Write "$R/.claude/reviews/mr/7.md"
+
+# --- Pull requests in a worktree: the same commands, aimed at a registered worktree
+wt_main="$tmp/wt-main"
+wt_copy="$tmp/wt-copy"
+wt_stray="$tmp/wt-stray"
+mkdir -p "$wt_main/.claude" "$wt_stray"
+git -C "$wt_main" init -q
+git -C "$wt_main" -c user.name=t -c user.email=t@t commit -qm base --allow-empty
+git -C "$wt_main" worktree add -q --detach "$wt_copy"
+case_ allow pr-reviewer Bash "git -C $wt_copy log --oneline origin/main..HEAD" "$wt_main"
+case_ allow pr-reviewer Bash "git -C \"$wt_copy\" status" "$wt_main"
+case_ allow pr-reviewer Bash "git -C ../wt-copy rev-parse HEAD" "$wt_main"
+case_ allow pr-reviewer Bash "just $wt_copy/check" "$wt_main"
+case_ allow pr-reviewer Bash "just $wt_copy/rules" "$wt_main"
+case_ allow pr-writer   Bash "git -C $wt_copy log --oneline origin/main..HEAD" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C $wt_stray log" "$wt_main"
+case_ deny  pr-reviewer Bash "just $wt_stray/check" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C $wt_copy push origin HEAD" "$wt_main"
+case_ deny  pr-reviewer Bash "just $wt_copy/fmt" "$wt_main"
+case_ deny  pr-reviewer Bash "git -C $wt_copy log && rm -rf $wt_copy" "$wt_main"
+case_ deny  pr-writer   Bash "just $wt_copy/check" "$wt_main"
 case_ deny  pr-reviewer Write "$R/.claude/reviews/LEM-3.md"
 
 # --- Renamed roles: the old names are no longer GitHub roles ---------------------
