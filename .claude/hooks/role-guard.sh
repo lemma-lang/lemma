@@ -44,7 +44,7 @@ cwd=${cwd%/}
 code_of() { # $1 = command
   printf '%s\n' "$1" | awk '{ print } /<</ { exit }' \
     | sed -E -e "s/([A-Za-z_][A-Za-z0-9_]*)=[\"']([^\"' ]*)[\"']/\\1=\\2/g" \
-             -e "s/'[^']*'//g" -e 's/"[^"]*"//g'
+             -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g'
 }
 code=$(code_of "$cmd")
 
@@ -432,8 +432,8 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
     *) exit 0 ;;
   esac
   # The code part only: `grep -n "cargo install" .github/workflows/ci.yml` installs nothing.
-  cmd_examined=$(printf '%s' "$code" | sed -E -e 's/[0-9]*>&([0-9]+|-)([^A-Za-z0-9_./~-]|$)/\2/g' \
-    -e 's#[0-9&]*>[[:space:]]*/dev/null##g' -e 's/->//g' -e 's/=>//g')
+  cmd_examined=$(printf '%s' "$code" | sed -E -e 's/[0-9]*>&([0-9]+|-)([[:space:];&|<>()]|$)/\2/g' \
+    -e 's#[0-9&]*>[[:space:]]*/dev/null##g')
   if [ -n "$own" ]; then
     own_re=$(printf '%s' "$own" | sed -e 's/\./\\./g')
     cmd_examined=$(printf '%s' "$cmd_examined" | sed -E \
