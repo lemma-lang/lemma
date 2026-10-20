@@ -306,6 +306,45 @@ fi
 
 [ "$tool" = "Bash" ] && [ -n "$cmd" ] || exit 0
 
+# The lines the shell runs as commands: each heredoc body is dropped up to its
+# terminator, and the lines after it are kept. A heredoc never terminated keeps
+# its lines, so that a `<<` the scan mistakes for one hides nothing.
+outside_heredocs() { # stdin = command → stdout
+  awk '
+    function delimiter(op,   word) {
+      word = op
+      sub(/^<<-?[ \t]*/, "", word)
+      if (word ~ /^["\047]/) return substr(word, 2, length(word) - 2)
+      sub(/^\\/, "", word)
+      return word
+    }
+    pending {
+      held[++held_count] = $0
+      line = $0
+      if (strip_tabs[current]) sub(/^\t+/, "", line)
+      if (line == wanted[current] && ++current > pending) { pending = 0; held_count = 0 }
+      next
+    }
+    /^[ \t]*\)[ \t]*"?[ \t]*$/ { next }
+    {
+      print
+      rest = $0
+      gsub(/<<</, "", rest)
+      gsub(/\(\([^)]*\)\)/, "", rest)
+      current = 1
+      while (match(rest, /<<-?[ \t]*("[^"]*"|\047[^\047]*\047|\\?[A-Za-z0-9_.@%+:,=-]+)|\047[^\047]*\047|"[^"]*"|(^|[ \t;&|(])#/)) {
+        token = substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART + RLENGTH)
+        if (token ~ /#$/) break
+        if (substr(token, 1, 2) != "<<") continue
+        wanted[++pending] = delimiter(token)
+        strip_tabs[pending] = (token ~ /^<<-/)
+      }
+    }
+    END { for (i = 1; i <= held_count; i++) print held[i] }
+  '
+}
+
 # What the shell runs as commands, as opposed to the data it carries: a
 # heredoc body (a commit message, an issue description) and a quoted string
 # (a grep pattern, a -m message) are dropped, so that a commit saying "apply
@@ -313,7 +352,7 @@ fi
 # assignment keeps its value (INSTA_UPDATE="always" becomes INSTA_UPDATE=always).
 # A speed bump like the rest: `"cargo" insta accept` slips through.
 code_of() { # $1 = command
-  printf '%s\n' "$1" | awk '{ print } /<</ { exit }' \
+  printf '%s\n' "$1" | outside_heredocs \
     | sed -E -e "s/([A-Za-z_][A-Za-z0-9_]*)=[\"']([^\"' ]*)[\"']/\\1=\\2/g" \
              -e "s/'[^']*'//g" -e 's/"[^"]*"//g'
 }
@@ -379,7 +418,7 @@ if [ "$role" = "coder" ]; then
     *'->'*|*'=>'*) ;;
     *) cmd_examined=$(printf '%s' "$cmd_examined" | sed -e 's/->//g' -e 's/=>//g') ;;
   esac
-  code_examined=$(printf '%s\n' "$cmd" | awk '{ print } /<</ { exit }' \
+  code_examined=$(printf '%s\n' "$cmd" | outside_heredocs \
     | sed -E -e "s/''//g" -e 's/""//g' -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g' | strip_dups)
   case "$code_examined" in
     *sed\ -i*|*tee\ *|*\>*|*mv\ *|*cp\ *|*rm\ *|*truncate*|*patch\ *)
