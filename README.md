@@ -19,13 +19,15 @@ Exported functions check their preconditions at the boundary and return a status
 variant skips the checks for callers that guarantee them ([ADR 0005](docs/adr/0005-c-abi-boundary.md)).
 
 ```
-fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
+export fn dot(n: u64, a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
   eff pure
   req n % 16 == 0
-  spec Σ(i<n) a[i]*b[i]
-  impl ...
+  spec sum(i: u64 in 0..<n) { a[i] * b[i] }
   equiv allow(fp_reassoc, fp_contract)
+  impl { ... }
 ```
+
+The prototype grammar is in [docs/grammar.md](docs/grammar.md).
 
 ## Principles
 

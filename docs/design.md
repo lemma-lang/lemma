@@ -43,7 +43,9 @@ from the M1 Pro: x86-64 has no performance reference machine.
 
 ## Calling Lemma from C and WebAssembly
 
-An exported function is always exported twice ([ADR 0005](adr/0005-c-abi-boundary.md)), under its
+A function is exported by writing `export fn`; a plain `fn` is internal to its module, with no
+symbol and no header entry ([ADR 0007](adr/0007-export-mapping-and-content-hash.md)). An exported
+function is always exported twice ([ADR 0005](adr/0005-c-abi-boundary.md)), under its
 module's prefix (`<module>_<function>`; the module is the source file's stem until Lemma has a
 module system). The checked variant tests every runtime-checkable precondition (null, alignment,
 extent overflow, disjointness of written regions, `req`, floating-point environment) and returns a
@@ -55,6 +57,14 @@ listing each check with its cost and what cannot be checked. For `dot` in a modu
 int32_t linalg_dot(uint64_t n, const float *a, const float *b, float *result);  /* 0 = ok */
 float   linalg_dot_unchecked(uint64_t n, const float *a, const float *b);
 ```
+
+The C parameters are the Lemma parameters in order, sizes included, with exact-width integer
+types, `const` on `ro` references and `restrict` on references required disjoint. Vector types and
+`bool` never cross the boundary. A bounded value keeps its base type's C type: a bounded parameter
+(`k: u64 < n`) is checked by the checked variant, so are a region's bounded elements
+(`&(u8 < m)[n]`), and a bounded result (`-> u64 <= n`) is a guarantee stated in the header. Each
+function in the header carries its content hash, SHA-256 of its canonical tokens from the
+parameter list to the end of its impl, name, `export` and comments excluded (ADR 0007).
 
 ## Who each surface is for
 
@@ -81,12 +91,62 @@ content is the list of granted relaxations, always written, empty for exact equi
   equiv allow()
 ```
 
-The surface of `examples/dot.lm` predates that decision and changes with the grammar: `;`
-comments, blocks delimited by indentation, aligned columns, the coined names `ld` and `hsum`,
-and `*` in the spec against a prefix `add` in the impl all go. Whether the sum and
-range membership are spelled `Σ` and `∈` or `sum` and `in` is open, settled by a calibration run
-before the syntax is frozen (ASCII on a tie); the examples in this document use `Σ` and `∈` until
-then.
+## Grammar
+
+The grammar of the prototype subset is [docs/grammar.md](grammar.md): tokens, EBNF, precedence,
+canonical layout and the closed list of syntax diagnostics, with the choices it makes recorded in
+[ADR 0008](adr/0008-prototype-grammar.md). It is provisional until ADR 0006's calibration freezes
+it. Whether the sum, range membership and quantifier are spelled `sum`, `in` and `forall`
+(variant A) or `Σ`, `∈` and `∀` (variant U) is settled by that calibration (ASCII on a
+tie); the grammar carries both, the parser defaults to A until then, and the examples in this
+document are written in A.
+
+`examples/dot.lm`, in variant A:
+
+```
+// Dot product of two f32 arrays, for 128-bit NEON with four accumulators.
+export fn dot(n: u64, a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
+  eff pure
+  req n % 16 == 0
+  spec sum(i: u64 in 0..<n) { a[i] * b[i] }
+  equiv allow(fp_reassoc, fp_contract)
+  impl {
+    loop i: u64 in 0..<n step 16 carry(
+      c0: f32x4 = f32x4.splat(0.0),
+      c1: f32x4 = f32x4.splat(0.0),
+      c2: f32x4 = f32x4.splat(0.0),
+      c3: f32x4 = f32x4.splat(0.0)
+    ) {
+      next c0 = fma(f32x4.load(a, i), f32x4.load(b, i), c0)
+      next c1 = fma(f32x4.load(a, i + 4), f32x4.load(b, i + 4), c1)
+      next c2 = fma(f32x4.load(a, i + 8), f32x4.load(b, i + 8), c2)
+      next c3 = fma(f32x4.load(a, i + 12), f32x4.load(b, i + 12), c3)
+    }
+    return reduce_sum((c0 + c1) + (c2 + c3))
+  }
+```
+
+Under variant U, the spec reads `spec Σ(i: u64 ∈ 0..<n) { a[i] * b[i] }` and the loop
+`loop i: u64 ∈ 0..<n step 16 carry(`; nothing else differs.
+
+What a reader needs to read it:
+
+- The contract comes first, in a fixed order (`eff`, `req`, `ens`, `spec`, `equiv`), and the
+  `impl` block last; everything before `impl` is what the spec reviewer sees.
+- A size is an ordinary parameter that later types name (`n: u64, a: &f32[n] ...`). A reference
+  always states its alignment in bytes and its mode.
+- A bound on a single value is in its type: `k: u64 < n` for a parameter, `-> u64 <= n` for the
+  result, `&(u8 < m)[n]` for a region's elements, naming only parameters to its left. `req` and
+  `ens` hold the other relations (`n % 16 == 0` in `dot`, which has no bound). Quantified
+  conditions are written `forall(i: u64 in 0..<n) { ... }`.
+- Every binder carries its type. Ranges are half-open and spelled `lo..<hi`.
+- No separators: each clause and statement starts with a keyword; blocks are braces; layout means
+  nothing. Comments are `//`.
+- Arithmetic is infix in the spec and the impl alike, lane by lane on vectors. `fma(x, y, z)` is
+  `x * y + z` with one rounding, the addend last as in C. `T.splat` and `T.load(a, i)` name the
+  vector type they produce; `reduce_sum` adds a vector's lanes.
+- A loop's carries are its state: inside the body a carry is its value at the start of the
+  iteration, `next` gives the following one, and after the loop the name holds the final value.
 
 ## Two levels of effects
 
@@ -115,10 +175,10 @@ instantiation) before it is implemented.
 
 ### `fma` needs `allow(fp_contract)`
 
-`allow(fp_reassoc)` permits reordering additions of the same terms. `fma c x y` computes `x*y + c`
-with a single rounding, where the spec rounds the product and then the sum: the terms themselves
-differ, so reassociation does not cover it. Each relaxation of IEEE semantics is a separate
-permission, opt-in by name:
+`allow(fp_reassoc)` permits reordering additions of the same terms. `fma(x, y, c)` computes
+`x * y + c` with a single rounding, where the spec rounds the product and then the sum: the terms
+themselves differ, so reassociation does not cover it. Each relaxation of IEEE semantics is a
+separate permission, opt-in by name:
 
 | Permission | Admits | LLVM lowering |
 |---|---|---|
@@ -145,8 +205,10 @@ array, and reading memory inside a `memory(none)` function is undefined behavior
 | `pure`, only `ro` references | `memory(argmem: read)`; each pointer `readonly`, `captures(none)` |
 | `ro` and `wo` references | `memory(argmem: readwrite)`; `ro` pointers `readonly`, `wo` pointers `writeonly`, `noalias` from the proven disjointness |
 
-`willreturn` is emitted only on the basis of a termination proof (every loop bounded, as
-`loop i ∈ 0..n` is), `noalias` only on proven or checked disjointness (ADR 0005).
+`willreturn` is emitted only on the basis of the bounded trip count of the loop lowering
+([ADR 0008](adr/0008-prototype-grammar.md)): a loop such as `loop i: u64 in 0..<n step 16` runs at
+most `ceil(n / 16)` times and its index never wraps. `noalias` is emitted only on proven or checked
+disjointness (ADR 0005).
 
 ### Alignment is in bytes
 

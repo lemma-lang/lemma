@@ -1,17 +1,20 @@
-; Dot product, target: Apple M1 Pro (128-bit NEON, 4 FP pipelines).
-; f32x4 = native width. 4 accumulators is a guess: the count is FMA latency × throughput, to be tuned per target.
-
-fn dot[n:u64] (a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
+// Dot product of two f32 arrays, for 128-bit NEON with four accumulators.
+export fn dot(n: u64, a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
   eff pure
   req n % 16 == 0
-  spec Σ(i<n) a[i]*b[i]
-
-  impl
-    loop i ∈ 0..n step 16 carry(c0 c1 c2 c3 = splat.f32x4 0.0)
-      next c0 = fma c0 (ld.f32x4 a[i+0])  (ld.f32x4 b[i+0])
-      next c1 = fma c1 (ld.f32x4 a[i+4])  (ld.f32x4 b[i+4])
-      next c2 = fma c2 (ld.f32x4 a[i+8])  (ld.f32x4 b[i+8])
-      next c3 = fma c3 (ld.f32x4 a[i+12]) (ld.f32x4 b[i+12])
-    ret hsum (add (add c0 c1) (add c2 c3))
-
+  spec sum(i: u64 in 0..<n) { a[i] * b[i] }
   equiv allow(fp_reassoc, fp_contract)
+  impl {
+    loop i: u64 in 0..<n step 16 carry(
+      c0: f32x4 = f32x4.splat(0.0),
+      c1: f32x4 = f32x4.splat(0.0),
+      c2: f32x4 = f32x4.splat(0.0),
+      c3: f32x4 = f32x4.splat(0.0)
+    ) {
+      next c0 = fma(f32x4.load(a, i), f32x4.load(b, i), c0)
+      next c1 = fma(f32x4.load(a, i + 4), f32x4.load(b, i + 4), c1)
+      next c2 = fma(f32x4.load(a, i + 8), f32x4.load(b, i + 8), c2)
+      next c3 = fma(f32x4.load(a, i + 12), f32x4.load(b, i + 12), c3)
+    }
+    return reduce_sum((c0 + c1) + (c2 + c3))
+  }
