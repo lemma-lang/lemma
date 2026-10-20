@@ -462,6 +462,7 @@ fn get/'
 frozen_case 1 "export dropped" 's/^export fn get/fn get/'
 frozen_case 1 "clause written after the impl" '$a\
   req n > 1'
+frozen_case 1 "clause written on the impl line" 's/^  impl \{$/  impl { } ens result == a[k] {/'
 
 frozen_move() { # $1 = description, $2 = new path ("" deletes the file)
   local got

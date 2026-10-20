@@ -645,7 +645,8 @@ context is polluted.
    `equiv` clauses, which the coder can write (the impl lives beside the spec) but must not
    change. It compares each function's contract with comments removed and whitespace collapsed,
    so a signature or a clause spread over several lines is covered whole, and a pure layout change
-   is not a move. A new function shows as a new contract, and `frozen-check.sh` exits 1 on it too:
+   is not a move; a contract keyword found outside every contract (a clause after an `impl`) counts
+   too, and a changed path found neither at the commit nor in the tree stops the check (exit 2). A new function shows as a new contract, and `frozen-check.sh` exits 1 on it too:
    you read it, and accept it only if the plan's step called for that function. **If any of the
    three moved, except for a new function accepted as above, the pass is rejected**: restore from
    that commit
