@@ -465,7 +465,9 @@ exit gate → committer → push → pr-writer → pr-reviewer → merge
   criterion with how it was verified, what remains open, and `Closes #<n>`.
 - **`pr-reviewer` decides whether it goes into `main`**, through seven checks in order: draft,
   base branch, CI checks, open review conversations, the checks it runs itself, agreement between
-  description and diff, absence of conflict. Verdict `MERGEABLE`, `RESERVATIONS` or `BLOCKED`.
+  description and diff, absence of conflict. Verdict `MERGEABLE`, `RESERVATIONS` or `BLOCKED`,
+  posted as a comment on the pull request after every pass, so that the review leaves a public
+  trace.
 - **The merge is submitted to the user, and only after their confirmation**: `gh pr merge` is in
   no `allow` list, and the guard refuses the `pr-reviewer` any option that would skip the
   confirmation or bypass the branch protection (`--admin`, `--auto`, `--yes`, `--force`). The
