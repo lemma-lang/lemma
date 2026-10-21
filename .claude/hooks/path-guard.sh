@@ -193,6 +193,11 @@ outside_notice() { # $1 = path received, $2 = absolute path, $3 = expected direc
 
 if [ "$tool" = "Write" ] || [ "$tool" = "Edit" ] || [ "$tool" = "NotebookEdit" ]; then
   [ -n "$target" ] || exit 0
+  # The file system also folds non-ASCII letters (`ſ` is `s`, `ﬁ` is `fi`), which
+  # lower-casing does not see: no role writes such a path.
+  printf '%s' "$target" | LC_ALL=C grep -q '[^ -~]' && refuse \
+"Write refused: \"$target\" holds a character outside plain ASCII, and you are $role.
+The file system may take it for another file's name. Use the plain ASCII path."
   abs=$(absolute "$target")
   project=$(canonical "$project")
   patterns=$(printf '%s\n' "$patterns" | tr '[:upper:]' '[:lower:]')

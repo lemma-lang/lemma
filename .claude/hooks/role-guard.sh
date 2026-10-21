@@ -502,6 +502,11 @@ in_zone() { # $1 = role, $2 = path relative to the project
 
 if [ "$tool" = "Write" ] || [ "$tool" = "Edit" ] || [ "$tool" = "NotebookEdit" ]; then
   [ -n "$target" ] || exit 0
+  # The file system also folds non-ASCII letters (`ſ` is `s`, `ﬁ` is `fi`), which
+  # lower-casing does not see: no role writes such a path.
+  printf '%s' "$target" | LC_ALL=C grep -q '[^ -~]' && refuse \
+"Write refused: \"$target\" holds a character outside plain ASCII, and you are $role.
+The file system may take it for another file's name. Use the plain ASCII path."
   path="$target"
   while :; do case "$path" in ./*) path=${path#./} ;; *) break ;; esac; done
   case "$path" in /*) abs=$(canonical "$path") ;; *) abs=$(canonical "$cwd/$path") ;; esac
