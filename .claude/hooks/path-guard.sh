@@ -122,8 +122,11 @@ fi
 
 # The form a path is compared in: `//` and `/./` collapsed, and lower case,
 # since the default macOS file system ignores case (`Tests.rs` is `tests.rs`).
+collapsed() { # $1 = absolute path
+  printf '%s\n' "$1" | sed -E -e 's#/+#/#g' -e 's#(/\.)+(/|$)#\2#g'
+}
 canonical() { # $1 = absolute path
-  printf '%s\n' "$1" | sed -E -e 's#/+#/#g' -e 's#(/\.)+(/|$)#\2#g' | tr '[:upper:]' '[:lower:]'
+  collapsed "$1" | tr '[:upper:]' '[:lower:]'
 }
 
 # A relative path is resolved by the tool from the cwd, never from the
@@ -198,7 +201,16 @@ if [ "$tool" = "Write" ] || [ "$tool" = "Edit" ] || [ "$tool" = "NotebookEdit" ]
   printf '%s' "$target" | LC_ALL=C grep -q '[^ -~]' && refuse \
 "Write refused: \"$target\" holds a character outside plain ASCII, and you are $role.
 The file system may take it for another file's name. Use the plain ASCII path."
-  abs=$(absolute "$target")
+  # The project root can be named another way (on macOS /System/Volumes/Data/Users/...
+  # is /Users/..., and no path resolution says so): it is found among the target's
+  # directories by identity, device and inode, not by spelling.
+  case "$target" in /*) joined=$(collapsed "$target") ;; *) joined=$(collapsed "$cwd/$target") ;; esac
+  dir=$(dirname "$joined")
+  while [ "$dir" != "/" ] && [ "$dir" != "." ]; do
+    if [ "$dir" -ef "$project" ]; then joined="$project${joined#"$dir"}"; break; fi
+    dir=$(dirname "$dir")
+  done
+  abs=$(absolute "$joined")
   project=$(canonical "$project")
   patterns=$(printf '%s\n' "$patterns" | tr '[:upper:]' '[:lower:]')
   rel=${abs#"$project"/}
@@ -248,6 +260,12 @@ so in your report." ;;
 
   case "$role" in
     coder)
+      case "$abs" in
+        "$project"/*|/tmp/*|/private/tmp/*|/var/folders/*|/private/var/folders/*) ;;
+        *) refuse \
+"Write refused: \"$target\" is outside the project $project, and you are the coder.
+Your work is in this tree; a scratch file goes under /tmp." ;;
+      esac
       is_a_test "$abs" && refuse \
 "Write refused: \"$abs\" is a test file, and you are the coder.
 This rule holds the whole TDD loop together — the tests are the specification,
