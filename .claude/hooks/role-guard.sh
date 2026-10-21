@@ -312,9 +312,29 @@ Run the read alone; its whole output comes back to you." ;;
           esac ;;
       esac ;;
   esac
+  # gh reads a quoted word as an option too ('--admin'), groups boolean short
+  # flags (-sd is -s -d) and takes a short flag's value attached (-a@me): the
+  # word patterns below see none of these, so they are judged word by word.
+  words=$(printf '%s\n' "$plain_line" | awk '{
+    word = ""; quote = ""
+    for (k = 1; k <= length($0); k++) {
+      ch = substr($0, k, 1)
+      if (quote == "" && (ch == " " || ch == "\t")) { if (word != "") print word; word = ""; continue }
+      if (quote == "" && (ch == "\047" || ch == "\"")) quote = ch
+      else if (ch == quote) quote = ""
+      word = word ch
+    }
+    if (word != "") print word
+  }')
+  printf '%s\n' "$words" | grep -Eq "^['\"]+-|^-[^='\"]*['\"]" && refuse \
+"Command refused: an option written with quotes, and you are $role. Write each option plainly."
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the
-  # squash flag, not the "-s" inside "--state".
-  padded=" $head_line "
+  # squash flag, not the "-s" inside "--state". With no option left in quotes,
+  # a quoted value is only text: it can neither trip nor satisfy these patterns.
+  padded=" $(printf '%s' "$plain_line" | sed -E -e "s/'[^']*'|\"[^\"]*\"/Q/g") "
+  short_flag() { # $1 = booleans that may precede it in a group, $2 = the flag letter
+    printf '%s' "$padded" | tr ' \t' '\n\n' | grep -Eq "^-[$1]*$2"
+  }
   # Options that skip a confirmation, bypass the branch protection, delete
   # what was written, or hand the command to a browser or an editor that the
   # harness does not show. Checked BEFORE the allowlist: otherwise
@@ -322,8 +342,8 @@ Run the read alone; its whole output comes back to you." ;;
   # "gh pr merge" pattern without ever being examined.
   case "$padded" in
     *" --admin "*|*" --admin="*|*" --auto "*|*" --auto="*|*" --disable-auto "*|\
-    *" --yes "*|*" -y "*|*" --force "*|*" --no-confirm "*|*" --delete-last "*|\
-    *" --web "*|*" -w "*|*" --editor "*) refuse \
+    *" --yes "*|*" --yes="*|*" -y "*|*" --force "*|*" --force="*|*" --no-confirm"*|\
+    *" --delete-last"*|*" --web "*|*" --web="*|*" -w "*|*" --editor "*|*" --editor="*) refuse \
 "Command refused: no option that bypasses a protection, skips a confirmation,
 deletes a comment or opens a browser or an editor (--admin, --auto, --yes,
 --force, --delete-last, --web, --editor), and you are $role.
@@ -331,6 +351,10 @@ What goes out is shown to the user as is, neither forced nor pre-confirmed." ;;
   esac
   case "$head_line" in
     "gh issue create"*|"gh issue comment"*|"gh issue edit"*|"gh pr create"*|"gh pr comment"*|"gh pr edit"*)
+      if short_flag ewh e || short_flag ewh w; then refuse \
+"Command refused: -e or -w opens an editor or a browser the harness does not show, and you are $role.
+Pass the text with --body-file - and a heredoc."
+      fi
       case "$padded" in *" -e "*) refuse \
 "Command refused: -e opens an editor the harness does not show, and you are $role.
 Pass the text with --body-file - and a heredoc." ;;
@@ -362,8 +386,23 @@ You observe the branch; what must change goes back to the coder." ;;
       # tied to the head commit the checks ran on.
       case "$head_line" in
         "gh pr merge "*)
+          # One form only: gh reads options in more ways (groups, repeats, a value
+          # taking the next word) than word checks can follow, so the merge is held
+          # to the exact shape the role uses, every other spelling refused.
+          printf '%s\n' "$plain_line" | grep -Eq '^gh pr merge [1-9][0-9]* --(squash|rebase) --match-head-commit [0-9a-f]{40}( --subject "[^"]*")?$' || refuse \
+"Command refused: the merge has a single form, and you are pr-reviewer:
+    gh pr merge <n> --squash|--rebase --match-head-commit <40-digit sha> [--subject \"<subject>\"]
+Nothing else on the line, the full head sha your checks ran on."
           case "$padded" in
-            *" --merge "*|*" -m "*) refuse \
+            *" --delete-branch"*) refuse \
+"Command refused: the head branch is not deleted without an explicit request, and you are pr-reviewer." ;;
+          esac
+          short_flag drs d && refuse \
+"Command refused: the head branch is not deleted without an explicit request, and you are pr-reviewer."
+          short_flag drs m && refuse \
+"Command refused: the repository accepts no merge commit, and you are pr-reviewer."
+          case "$padded" in
+            *" --merge "*|*" --merge="*|*" -m "*) refuse \
 "Command refused: the repository accepts no merge commit, and you are pr-reviewer.
 Merge with --squash or --rebase, the method the caller gave you." ;;
           esac
@@ -373,8 +412,14 @@ Merge with --squash or --rebase, the method the caller gave you." ;;
 "Command refused: gh pr merge needs an explicit --squash or --rebase, and you are pr-reviewer.
 Without the caller's method, do not choose: ask." ;;
           esac
+          # gh gives a value option the next word even when it starts with a dash, so
+          # `--subject --match-head-commit` would pin nothing.
+          printf '%s' "$padded" | grep -Eq -- ' (--subject|--body|--body-file|--author-email|--match-head-commit|-[tbFA])[= ]-' && refuse \
+"Command refused: an option's value starts with a dash, and you are pr-reviewer.
+gh would take that word as the value, not as an option."
           case "$padded" in
-            *" --match-head-commit "*|*" --match-head-commit="*) ;;
+            *" --match-head-commit "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*|\
+            *" --match-head-commit="[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;;
             *) refuse \
 "Command refused: gh pr merge needs --match-head-commit <sha>, the commit your
 checks ran on, and you are pr-reviewer. Without it, a push made after your
@@ -415,6 +460,12 @@ Without it, gh offers to push the current branch: you push nothing." ;;
       case "$padded" in
         *" --add-assignee"*|*" --remove-assignee"*|*" --assignee"*|*" -a "*) refuse \
 "Command refused: assigning an issue is up to the user, and you are ticket-writer." ;;
+      esac
+      short_flag ewh a && refuse \
+"Command refused: assigning an issue is up to the user, and you are ticket-writer."
+      case "$head_line" in
+        "gh label create "*) short_flag h f && refuse \
+"Command refused: gh label create -f overwrites an existing label, and you are ticket-writer." ;;
       esac
       # The last method flag wins: a second one would turn the PATCH into a DELETE.
       case "$head_line" in
