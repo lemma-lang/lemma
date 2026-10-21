@@ -205,6 +205,16 @@ The file system may take it for another file's name. Use the plain ASCII path."
   # is /Users/..., and no path resolution says so): it is found among the target's
   # directories by identity, device and inode, not by spelling.
   case "$target" in /*) joined=$(collapsed "$target") ;; *) joined=$(collapsed "$cwd/$target") ;; esac
+  # A path spelled outside the project has its links followed first, so that a
+  # link into the project from elsewhere is judged where it lands. Inside, the
+  # links are the setup's own (a worktree's shared .claude/ memory) and stay.
+  case "$(canonical "$joined")" in
+    "$(canonical "$project")"/*) ;;
+    *)
+      dir=$(dirname "$joined")
+      while [ "$dir" != "/" ] && [ ! -d "$dir" ]; do dir=$(dirname "$dir"); done
+      real=$(cd -P "$dir" 2>/dev/null && pwd -P) && joined="$real${joined#"$dir"}" ;;
+  esac
   dir=$(dirname "$joined")
   while [ "$dir" != "/" ] && [ "$dir" != "." ]; do
     if [ "$dir" -ef "$project" ]; then joined="$project${joined#"$dir"}"; break; fi
@@ -260,12 +270,6 @@ so in your report." ;;
 
   case "$role" in
     coder)
-      case "$abs" in
-        "$project"/*|/tmp/*|/private/tmp/*|/var/folders/*|/private/var/folders/*) ;;
-        *) refuse \
-"Write refused: \"$target\" is outside the project $project, and you are the coder.
-Your work is in this tree; a scratch file goes under /tmp." ;;
-      esac
       is_a_test "$abs" && refuse \
 "Write refused: \"$abs\" is a test file, and you are the coder.
 This rule holds the whole TDD loop together — the tests are the specification,
