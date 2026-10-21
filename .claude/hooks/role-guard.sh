@@ -315,7 +315,17 @@ Run the read alone; its whole output comes back to you." ;;
   # gh reads a quoted word as an option too ('--admin'), groups boolean short
   # flags (-sd is -s -d) and takes a short flag's value attached (-a@me): the
   # word patterns below see none of these, so they are judged word by word.
-  words=$(printf '%s\n' "$plain_line" | tr ' \t' '\n\n')
+  words=$(printf '%s\n' "$plain_line" | awk '{
+    word = ""; quote = ""
+    for (k = 1; k <= length($0); k++) {
+      ch = substr($0, k, 1)
+      if (quote == "" && (ch == " " || ch == "\t")) { if (word != "") print word; word = ""; continue }
+      if (quote == "" && (ch == "\047" || ch == "\"")) quote = ch
+      else if (ch == quote) quote = ""
+      word = word ch
+    }
+    if (word != "") print word
+  }')
   printf '%s\n' "$words" | grep -Eq "^['\"]+-|^-[^='\"]*['\"]" && refuse \
 "Command refused: an option written with quotes, and you are $role. Write each option plainly."
   # Padded with spaces so that a flag is matched as a whole word: " -s " is the
@@ -395,8 +405,14 @@ Merge with --squash or --rebase, the method the caller gave you." ;;
 "Command refused: gh pr merge needs an explicit --squash or --rebase, and you are pr-reviewer.
 Without the caller's method, do not choose: ask." ;;
           esac
+          # gh gives a value option the next word even when it starts with a dash, so
+          # `--subject --match-head-commit` would pin nothing.
+          printf '%s' "$padded" | grep -Eq -- ' (--subject|--body|--body-file|--author-email|--match-head-commit|-[tbFA])[= ]-' && refuse \
+"Command refused: an option's value starts with a dash, and you are pr-reviewer.
+gh would take that word as the value, not as an option."
           case "$padded" in
-            *" --match-head-commit "*|*" --match-head-commit="*) ;;
+            *" --match-head-commit "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*|\
+            *" --match-head-commit="[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;;
             *) refuse \
 "Command refused: gh pr merge needs --match-head-commit <sha>, the commit your
 checks ran on, and you are pr-reviewer. Without it, a push made after your
