@@ -283,6 +283,37 @@ case_ allow coder  Bash $'cat <<\'EOF\'\n$(echo x > crates/lemma-syntax/src/test
 case_ allow coder  Bash $'cat <<EOF\ncargo insta accept\nEOF'
 case_ deny  committer Bash $'git commit -m "$(cat <<\'EOF\'\n)\n$(gh issue close 3)\nEOF\n)"'
 
+# --- Paths are compared collapsed and without case, links are writes ----------
+case_ deny  coder  Write "$R/.claude//hooks/path-guard.sh"
+case_ deny  coder  Write "$R/./.github/workflows/ci.yml"
+case_ deny  coder  Write "$R//justfile"
+case_ deny  coder  Write "$R/./docs/adr/0002-scope.md"
+case_ deny  coder  Write "$R/crates/lemma-diagnostics/src/Tests.rs"
+case_ deny  coder  Write "$R/.claude/Hooks/path-guard.sh"
+case_ deny  coder  Write "$R/Justfile"
+case_ deny  coder  Write "$R/Claude.md"
+case_ deny  coder  Write "$R/crates/lemma-syntax/./tests/parse.rs"
+case_ deny  tester Write "$R/crates/lemma-syntax/src//lib.rs"
+case_ deny  devsecops Write "$R/.claude/Security/../../deny.toml"
+case_ deny  devsecops Write "$R//deny.toml"
+case_ deny  devsecops Bash "echo x > .claude/security/../../deny.toml"
+case_ deny  devsecops Bash "cargo deny check | tee .claude/security/../../deny.toml"
+case_ deny  coder  Bash "ln -s ../../../justfile crates/x/src/h.rs"
+case_ deny  coder  Bash "cd crates && ln ../justfile h.rs"
+case_ deny  perf-engineer Bash "ln -sf ../../Cargo.toml .claude/perf/x"
+case_ deny  coder  Write "$R/juſtfile"
+case_ deny  coder  Write "$R/.cargo/conﬁg.toml"
+case_ deny  coder  Write "$R/crates/lemma-syntax/src/teſts.rs"
+case_ deny  coder  Write "$R/.claude/hookſ/path-guard.sh"
+case_ deny  devsecops Write "$R/.claude/security/résumé.md"
+case_ allow coder  Write "$R/crates/lemma-syntax/src/lib.rs"
+case_ allow coder  Write "$R/crates/lemma-syntax/src/Lexer.rs"
+case_ allow tester Write "$R/crates/lemma-syntax/src/tests.rs"
+case_ allow devsecops Write "$R/.claude/security/x.md"
+case_ allow devsecops Bash "cargo deny check 2>&1 | tee .claude/security/deny.log"
+case_ allow coder  Bash "grep -rn println crates"
+case_ allow coder  Bash "ls -ln crates"
+
 # --- gh: who may call it at all ------------------------------------------------
 case_ deny  coder Bash "gh issue list"
 case_ deny  planner Bash "gh issue view 3"

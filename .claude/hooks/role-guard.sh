@@ -456,6 +456,12 @@ anchor() {
 project=$(anchor)
 [ -n "$project" ] || refuse "Role guard: project root not found from \"$cwd\", refused as a precaution."
 
+# The form a path is compared in: `//` and `/./` collapsed, and lower case,
+# since the default macOS file system ignores case (`Tests.rs` is `tests.rs`).
+canonical() { # $1 = absolute path
+  printf '%s\n' "$1" | sed -E -e 's#/+#/#g' -e 's#(/\.)+(/|$)#\2#g' | tr '[:upper:]' '[:lower:]'
+}
+
 zone_of() { # $1 = role → readable description of its zone
   case "$1" in
     release-engineer)  echo ".github/ (workflows, dependabot.yml), cog.toml, deny.toml, clippy.toml, rustfmt.toml, rust-toolchain.toml, .cargo/config.toml, justfile, taplo.toml, _typos.toml, .editorconfig" ;;
@@ -496,9 +502,15 @@ in_zone() { # $1 = role, $2 = path relative to the project
 
 if [ "$tool" = "Write" ] || [ "$tool" = "Edit" ] || [ "$tool" = "NotebookEdit" ]; then
   [ -n "$target" ] || exit 0
+  # The file system also folds non-ASCII letters (`ſ` is `s`, `ﬁ` is `fi`), which
+  # lower-casing does not see: no role writes such a path.
+  printf '%s' "$target" | LC_ALL=C grep -q '[^ -~]' && refuse \
+"Write refused: \"$target\" holds a character outside plain ASCII, and you are $role.
+The file system may take it for another file's name. Use the plain ASCII path."
   path="$target"
   while :; do case "$path" in ./*) path=${path#./} ;; *) break ;; esac; done
-  case "$path" in /*) abs="$path" ;; *) abs="$cwd/$path" ;; esac
+  case "$path" in /*) abs=$(canonical "$path") ;; *) abs=$(canonical "$cwd/$path") ;; esac
+  project=$(canonical "$project")
 
   case "$abs" in */../*|*/..) refuse \
 "Write refused: \"$target\" contains \"..\". Give the path again in plain form from $project/." ;;
@@ -533,12 +545,19 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
   cmd_examined=$(printf '%s\n' "$cmd" | outside_heredocs \
     | sed -E -e "s/''//g" -e 's/""//g' -e "s/'[^']*'/Q/g" -e 's/"[^"]*"/Q/g' \
              -e 's/[0-9]*>&([0-9]+|-)([[:space:];&|<>()]|$)/\2/g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g')
+  # A `..` in a target can walk out of the role's own directory, so a command
+  # holding one gets no allowance for it.
+  case "$cmd_examined" in *..*) own="" ;; esac
   if [ -n "$own" ]; then
     own_re=$(printf '%s' "$own" | sed -e 's/\./\\./g')
     cmd_examined=$(printf '%s' "$cmd_examined" | sed -E \
       -e "s#[0-9&]*>>?[[:space:]]*[^[:space:]]*${own_re}[^[:space:]]*##g" \
       -e "s#tee([[:space:]]+-a)?[[:space:]]+[^[:space:]]*${own_re}[^[:space:]]*##g")
   fi
+  printf '%s\n' "$code" | grep -Eq '(^|[^[:alnum:]_.-])ln[[:space:]]' && refuse \
+"Command refused: it creates a link, and you are $role.
+    $cmd
+A link lets a later write land outside $(zone_of "$role"), where the guard never looks."
   case "$cmd_examined" in
     *sed\ -i*|*tee\ *|*\>*|*mv\ *|*cp\ *|*rm\ *|*truncate*|*patch\ *|*install\ *|*\ add\ *|*sudo\ *)
       refuse \
