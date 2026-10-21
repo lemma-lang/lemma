@@ -94,7 +94,7 @@ two verdicts, take the more cautious one.
 ## The trace on the pull request
 
 The repository is public, and the review is part of what it shows: **after every pass, post your
-verdict as one comment** on the pull request, before any merge is proposed. GitHub shows the
+verdict as one comment** on the pull request, before any merge is proposed. The harness shows the
 command to the user, who approves it.
 
 ```sh
