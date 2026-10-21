@@ -386,6 +386,13 @@ You observe the branch; what must change goes back to the coder." ;;
       # tied to the head commit the checks ran on.
       case "$head_line" in
         "gh pr merge "*)
+          # One form only: gh reads options in more ways (groups, repeats, a value
+          # taking the next word) than word checks can follow, so the merge is held
+          # to the exact shape the role uses, every other spelling refused.
+          printf '%s\n' "$plain_line" | grep -Eq '^gh pr merge [1-9][0-9]* --(squash|rebase) --match-head-commit [0-9a-f]{40}( --subject "[^"]*")?$' || refuse \
+"Command refused: the merge has a single form, and you are pr-reviewer:
+    gh pr merge <n> --squash|--rebase --match-head-commit <40-digit sha> [--subject \"<subject>\"]
+Nothing else on the line, the full head sha your checks ran on."
           case "$padded" in
             *" --delete-branch"*) refuse \
 "Command refused: the head branch is not deleted without an explicit request, and you are pr-reviewer." ;;
