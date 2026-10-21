@@ -314,6 +314,19 @@ case_ allow devsecops Bash "cargo deny check 2>&1 | tee .claude/security/deny.lo
 case_ allow coder  Bash "grep -rn println crates"
 case_ allow coder  Bash "ls -ln crates"
 
+# --- The project root is recognized under another name ------------------------
+ln -s "$R" "$tmp/root-alias"
+ln -s "$R/.github" "$tmp/github-alias"
+case_ deny  coder  Write "$tmp/root-alias/justfile"
+case_ deny  coder  Write "$tmp/root-alias/crates/lemma-syntax/src/tests.rs"
+case_ deny  coder  Write "$tmp/root-alias/.claude/hooks/path-guard.sh"
+case_ deny  coder  Write "$tmp/github-alias/workflows/ci.yml"
+case_ deny  coder  Write "$R/crates/../justfile"
+case_ deny  coder  Write "$R/no-such-dir/../justfile"
+case_ allow coder  Write "$tmp/root-alias/crates/lemma-syntax/src/lib.rs"
+case_ allow coder  Write "/tmp/lemma-scratch.txt"
+case_ allow coder  Write "$R/crates/lemma-syntax/src/lib.rs"
+
 # --- gh: who may call it at all ------------------------------------------------
 case_ deny  coder Bash "gh issue list"
 case_ deny  planner Bash "gh issue view 3"

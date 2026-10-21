@@ -122,8 +122,11 @@ fi
 
 # The form a path is compared in: `//` and `/./` collapsed, and lower case,
 # since the default macOS file system ignores case (`Tests.rs` is `tests.rs`).
+collapsed() { # $1 = absolute path
+  printf '%s\n' "$1" | sed -E -e 's#/+#/#g' -e 's#(/\.)+(/|$)#\2#g'
+}
 canonical() { # $1 = absolute path
-  printf '%s\n' "$1" | sed -E -e 's#/+#/#g' -e 's#(/\.)+(/|$)#\2#g' | tr '[:upper:]' '[:lower:]'
+  collapsed "$1" | tr '[:upper:]' '[:lower:]'
 }
 
 # A relative path is resolved by the tool from the cwd, never from the
@@ -198,7 +201,26 @@ if [ "$tool" = "Write" ] || [ "$tool" = "Edit" ] || [ "$tool" = "NotebookEdit" ]
   printf '%s' "$target" | LC_ALL=C grep -q '[^ -~]' && refuse \
 "Write refused: \"$target\" holds a character outside plain ASCII, and you are $role.
 The file system may take it for another file's name. Use the plain ASCII path."
-  abs=$(absolute "$target")
+  # The project root can be named another way (on macOS /System/Volumes/Data/Users/...
+  # is /Users/..., and no path resolution says so): it is found among the target's
+  # directories by identity, device and inode, not by spelling.
+  case "$target" in /*) joined=$(collapsed "$target") ;; *) joined=$(collapsed "$cwd/$target") ;; esac
+  # A path spelled outside the project has its links followed first, so that a
+  # link into the project from elsewhere is judged where it lands. Inside, the
+  # links are the setup's own (a worktree's shared .claude/ memory) and stay.
+  case "$(canonical "$joined")" in
+    "$(canonical "$project")"/*) ;;
+    *)
+      dir=$(dirname "$joined")
+      while [ "$dir" != "/" ] && [ ! -d "$dir" ]; do dir=$(dirname "$dir"); done
+      real=$(cd -P "$dir" 2>/dev/null && pwd -P) && joined="$real${joined#"$dir"}" ;;
+  esac
+  dir=$(dirname "$joined")
+  while [ "$dir" != "/" ] && [ "$dir" != "." ]; do
+    if [ "$dir" -ef "$project" ]; then joined="$project${joined#"$dir"}"; break; fi
+    dir=$(dirname "$dir")
+  done
+  abs=$(absolute "$joined")
   project=$(canonical "$project")
   patterns=$(printf '%s\n' "$patterns" | tr '[:upper:]' '[:lower:]')
   rel=${abs#"$project"/}
