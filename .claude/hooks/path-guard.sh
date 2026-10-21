@@ -120,6 +120,12 @@ if [ -f "$project/.claude/test-paths.txt" ]; then
   [ -n "$custom" ] && patterns="$custom"
 fi
 
+# The form a path is compared in: `//` and `/./` collapsed, and lower case,
+# since the default macOS file system ignores case (`Tests.rs` is `tests.rs`).
+canonical() { # $1 = absolute path
+  printf '%s\n' "$1" | sed -E -e 's#/+#/#g' -e 's#(/\.)+(/|$)#\2#g' | tr '[:upper:]' '[:lower:]'
+}
+
 # A relative path is resolved by the tool from the cwd, never from the
 # root — the guard must judge the file that will actually be written.
 # A leading "./" is stripped: without that the prefix comparison would refuse
@@ -128,7 +134,7 @@ fi
 absolute() { # $1 = path as the tool received it
   path="$1"
   while :; do case "$path" in ./*) path=${path#./} ;; *) break ;; esac; done
-  case "$path" in /*) printf '%s' "$path" ;; *) printf '%s/%s' "$cwd" "$path" ;; esac
+  case "$path" in /*) canonical "$path" ;; *) canonical "$cwd/$path" ;; esac
 }
 
 # Patterns read like .gitignore: one without a "/" is matched against the file
@@ -188,6 +194,8 @@ outside_notice() { # $1 = path received, $2 = absolute path, $3 = expected direc
 if [ "$tool" = "Write" ] || [ "$tool" = "Edit" ] || [ "$tool" = "NotebookEdit" ]; then
   [ -n "$target" ] || exit 0
   abs=$(absolute "$target")
+  project=$(canonical "$project")
+  patterns=$(printf '%s\n' "$patterns" | tr '[:upper:]' '[:lower:]')
   rel=${abs#"$project"/}
 
   case "$abs" in
@@ -218,7 +226,7 @@ report: the user fixes them." ;;
     */.claude/agents/*|*/.claude/skills/*|*/.claude/tools/*|\
     */.claude/rules|*/.claude/rules/*|\
     */.claude/orchestration.md|*/.claude/project.conf|\
-    "$project/CLAUDE.md"|"$project/AGENTS.md") refuse \
+    "$project/claude.md"|"$project/agents.md") refuse \
 "Write refused: \"$abs\" belongs to the setup that runs the roles and their
 guards, or to the instructions the main session runs under, and no role
 modifies it. If it looks wrong to you, say what and why in your report: the
@@ -408,6 +416,14 @@ if [ "$role" = "coder" ]; then
   # Only `>&` followed by a descriptor or `-` duplicates; `>&word` writes the file word.
   strip_dups() { sed -E -e 's/[0-9]*>&([0-9]+|-)([[:space:];&|<>()]|$)/\2/g' -e 's#[0-9&]*>[[:space:]]*/dev/null##g'; }
   cmd_examined=$(printf '%s' "$cmd" | strip_dups)
+  # A symbolic link sends a later write to its target, which no check of the
+  # written path sees.
+  if printf '%s\n' "$code" | grep -Eq '(^|[^[:alnum:]_.-])ln[[:space:]]'; then refuse \
+"Command refused: it creates a link, and you are the coder.
+    $cmd
+A link lets a later write land on a file the guard never sees. Write the file
+itself, at its own path."
+  fi
   case "$code" in
     *'->'*|*'=>'*) ;;
     *) cmd_examined=$(printf '%s' "$cmd_examined" | sed -e 's/->//g' -e 's/=>//g') ;;
