@@ -1,6 +1,6 @@
 ---
 name: lemma-code-review
-description: Use when reviewing a pull request or a branch in the Lemma repository, or before asking for review of your own. Covers getting the real diff, checking it against what was asked and against AGENTS.md, and the soundness checks specific to a verifying compiler (LLVM facts, unsafe and the JIT, verifier answers, hostile input).
+description: Use when reviewing a pull request or a branch in the Lemma repository, or before asking for review of your own. Covers getting the real diff, checking it against what was asked and against AGENTS.md, and the soundness checks specific to a verifying compiler (LLVM facts, unsafe and the JIT, verifier answers, hostile input), and trying to break the change with probes that are run.
 ---
 
 # Reviewing a Lemma change
@@ -73,8 +73,23 @@ In this order, as it applies:
 - **Resources and errors.** LLVM and Z3 contexts released, errors not swallowed, no shared state
   across threads without a reason.
 
-Run what proves a suspicion: a targeted test, an IR dump of a case to read an emitted attribute,
-`cargo +nightly miri test -p lemma-jit` when installed.
+## Try to break it
+
+Reading finds what looks wrong; running finds what is wrong. For each suspected defect, and for
+each boundary the change claims to handle (an error path, a malformed input, an ownership hand-off
+at the FFI, a lifetime the borrow checker is said to enforce), write the smallest program that
+would show the failure, and run it:
+
+- A probe is a throwaway crate outside the tracked files, with its own empty `[workspace]` table
+  so that Cargo does not attach it to the repository's workspace, path dependencies on the crates
+  under review, and `--target-dir <repository>/target` so that LLVM and Z3 are not rebuilt.
+- A compile-fail claim is probed by a program that must not compile.
+- A targeted test, an IR dump of a case to read an emitted attribute, and
+  `cargo +nightly miri test -p lemma-jit` when installed, are probes too.
+
+A counterexample that holds is reported with its input and what it produced, and becomes a
+non-regression test in the change; the probe itself never lands in the tree. A finding no probe
+reproduces is reported as a hypothesis, with the reason none could be written.
 
 ## Reporting
 
