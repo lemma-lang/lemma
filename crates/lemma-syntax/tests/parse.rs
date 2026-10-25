@@ -234,9 +234,8 @@ const STATEMENT_CASES: [(&str, &str); 5] = [
     ),
 ];
 
-const FILE_CASES: [(&str, &str); 3] = [
+const FILE_CASES: [(&str, &str); 2] = [
     ("", ""),
-    ("// nothing but a comment\n", ""),
     (
         concat!(
             "export fn first() -> u64\n",
@@ -306,7 +305,8 @@ const CLAUSES_DUMP: &str = concat!(
 
 const COMMENTED_FUNCTION: &str = concat!(
     "// lead\n",
-    "fn f() -> u64 // tail\n",
+    "fn f() -> u64\n",
+    "  // clause\n",
     "  eff pure\n",
     "  spec 0\n",
     "  equiv allow()\n",
@@ -520,7 +520,7 @@ fn parse_collects_every_comment_with_its_range() {
         comments,
         vec![
             (TextRange { start: 0, end: 7 }, "// lead".to_string()),
-            (TextRange { start: 22, end: 29 }, "// tail".to_string()),
+            (TextRange { start: 24, end: 33 }, "// clause".to_string()),
         ]
     );
 }

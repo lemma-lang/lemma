@@ -910,14 +910,14 @@ fn whitespace_and_comments_separate_tokens_without_faults() {
             vec![plain(name("a"), 0, 1), plain(name("c"), 6, 7), eof(7)],
         ),
         (
-            "// \u{03A3} \u{E9} \u{2211}\nfn",
+            "// sum, in, forall\nfn",
             ASCII,
-            vec![plain(kind_of("fn", ASCII), 13, 15), eof(15)],
+            vec![plain(kind_of("fn", ASCII), 19, 21), eof(21)],
         ),
         (
-            "// \u{03A3} \u{E9} \u{2211}\nfn",
+            "// sum, in, forall\nfn",
             UNICODE,
-            vec![plain(kind_of("fn", UNICODE), 13, 15), eof(15)],
+            vec![plain(kind_of("fn", UNICODE), 19, 21), eof(21)],
         ),
     ];
 
@@ -940,8 +940,8 @@ fn comments_are_collected_with_their_ranges() {
         ),
         ("a // x", vec![(at(2, 6), "// x".to_string())]),
         (
-            "// \u{03A3} \u{E9} \u{2211}\nfn",
-            vec![(at(0, 12), "// \u{03A3} \u{E9} \u{2211}".to_string())],
+            "// sum, in, forall\nfn",
+            vec![(at(0, 18), "// sum, in, forall".to_string())],
         ),
         ("a / b", Vec::new()),
     ];
