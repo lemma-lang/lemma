@@ -1,5 +1,6 @@
 //! Classification of one numeric lexeme: valid literal, repairable malformed literal, or neither.
 
+use super::scalar_type;
 use crate::token::TextRange;
 
 /// A literal spelled as the grammar requires, with the edits that turn the lexeme into it.
@@ -88,21 +89,40 @@ impl Reader<'_> {
         self.take_digits() > 0
     }
 
-    /// Drops a type suffix such as `f`, `u64` or `_f32`.
-    fn drop_suffix(&mut self) -> bool {
+    /// Whether the rest of the lexeme spells a type suffix: `f`, `d` or a scalar type name,
+    /// optionally after `_`.
+    fn at_type_suffix(&self) -> bool {
         let rest = self.lexeme.get(self.index..).unwrap_or_default();
         let word = rest.strip_prefix(b"_").unwrap_or(rest);
-        let starts_like_a_type =
-            matches!(word.first(), Some(b'a'..=b'z')) && word.first() != Some(&b'x');
-        let is_word = word
-            .iter()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit());
-        if !starts_like_a_type || !is_word {
+        std::str::from_utf8(word)
+            .is_ok_and(|word| matches!(word, "f" | "d") || scalar_type(word).is_some())
+    }
+
+    /// Drops a type suffix such as `f`, `u64` or `_f32`.
+    fn drop_suffix(&mut self) -> bool {
+        if !self.at_type_suffix() {
             return false;
         }
         self.edit(self.index, self.lexeme.len(), "");
         self.index = self.lexeme.len();
         true
+    }
+
+    /// Takes `.` and the digits after it; a missing digit is inserted, and with a type suffix
+    /// right after the `.`, one edit turns `.` and the suffix into `.0`.
+    fn take_fraction(&mut self) {
+        let dot = self.index;
+        self.keep();
+        if self.take_digits() > 0 {
+            return;
+        }
+        if !self.at_type_suffix() {
+            self.insert("0");
+            return;
+        }
+        self.edit(dot, self.lexeme.len(), ".0");
+        self.spelling.push('0');
+        self.index = self.lexeme.len();
     }
 }
 
@@ -129,10 +149,7 @@ pub(super) fn classify(lexeme: &[u8], offsets: &[usize]) -> Option<Literal> {
     }
     if reader.peek(0) == Some(b'.') {
         is_float = true;
-        reader.keep();
-        if reader.take_digits() == 0 {
-            reader.insert("0");
-        }
+        reader.take_fraction();
     }
     if reader.peek(0) == Some(b'e') {
         if !is_float {

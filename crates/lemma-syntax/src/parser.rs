@@ -6,11 +6,16 @@
 //! or `export`.
 
 mod expression;
+mod foreign;
+mod nesting;
+mod recovery;
 mod signature;
 mod statement;
 
 use lemma_diagnostics::{Diagnostic, Edit, Kind, Position, Source, Span, SpanError};
 
+use self::foreign::{Context, Foreign};
+use self::nesting::{Delimiter, Nesting};
 use crate::ast::{Clause, EffClause, Effect, EquivClause, File, Function, Name, Permission};
 use crate::lexer::lex;
 use crate::token::{C1Symbol, C1Variant, Comment, Fault, Keyword, TextRange, Token, TokenKind};
@@ -39,6 +44,8 @@ pub fn parse(source: Source<'_>, variant: C1Variant) -> Parsed {
         position: 0,
         previous_end: 0,
         diagnostics: Vec::new(),
+        nesting: Nesting::default(),
+        in_impl: false,
     };
     let file = parser.parse_file();
     Parsed {
@@ -80,6 +87,8 @@ struct Parser<'a> {
     position: usize,
     previous_end: usize,
     diagnostics: Vec<Diagnostic>,
+    nesting: Nesting,
+    in_impl: bool,
 }
 
 fn keyword(keyword: Keyword) -> TokenKind {
@@ -312,79 +321,37 @@ impl Parser<'_> {
     /// Consumes the C1 symbol `symbol` in either spelling; the other variant's is reported with
     /// the active spelling as its repair.
     fn consume_c1(&mut self, symbol: C1Symbol) -> ParseResult<TextRange> {
+        if symbol == C1Symbol::In && self.at(&TokenKind::MembershipLookalike) {
+            let looks = self.code_point(self.current().range);
+            let message = format!("{looks} looks like `{}`", symbol.spelling(self.variant));
+            return self.consume_respelled(symbol, Kind::Lookalike, message);
+        }
         let spelled = match self.peek(0).c1_symbol() {
             Some((found, spelled)) if found == symbol => spelled,
             _ => return Err(self.fail(&[token(symbol.token(self.variant))])),
         };
-        let range = self.bump()?;
-        if spelled != self.variant {
-            let found = self.token_text(range);
-            let active = symbol.spelling(self.variant);
-            let replacement = symbol.replacement(self.variant, self.source.text, range);
-            let message = format!("`{found}` is the other C1 variant's spelling; write `{active}`");
-            let record = self.record(
-                Kind::C1OtherVariant,
-                message,
-                range,
-                &[(range, replacement)],
-            );
-            self.diagnostics.push(record);
+        if spelled == self.variant {
+            return self.bump();
         }
-        Ok(range)
+        let found = self.found(self.current());
+        let active = symbol.spelling(self.variant);
+        let message = format!("{found} is the other C1 variant's spelling; write `{active}`");
+        self.consume_respelled(symbol, Kind::C1OtherVariant, message)
     }
 
-    /// Parses `item ("," item)*` and the `close` token, or `close` alone when the list may be
-    /// empty. The opening token is already consumed.
-    fn parse_list<T>(
+    /// Consumes the current token, reported as `kind` with the active spelling of `symbol` as
+    /// its repair.
+    fn consume_respelled(
         &mut self,
-        close: TokenKind,
-        may_be_empty: bool,
-        mut item: impl FnMut(&mut Self) -> ParseResult<T>,
-    ) -> ParseResult<Vec<T>> {
-        let mut items = Vec::new();
-        if may_be_empty && self.at(&close) {
-            self.bump()?;
-            return Ok(items);
-        }
-        loop {
-            items.push(item(self)?);
-            if self.eat(&TokenKind::Comma)?.is_none() {
-                break;
-            }
-        }
-        if !self.at(&close) {
-            return Err(self.fail(&[token(TokenKind::Comma), token(close)]));
-        }
-        self.bump()?;
-        Ok(items)
-    }
-
-    /// Records the unexpected token, or the fault that ended the function, and returns the abort.
-    fn fail(&mut self, expected: &[Expectation]) -> Abort {
-        let unrepaired = self.report_faults();
-        let current = self.current();
-        let (kind, range) = (current.kind.clone(), current.range);
-        if unrepaired || kind == TokenKind::Error {
-            return Abort;
-        }
-        let at_end = kind == TokenKind::Eof;
-        let found = if at_end {
-            "end of input".to_string()
-        } else {
-            format!("`{}`", self.token_text(range))
-        };
-        let message = format!(
-            "unexpected {found}, expected {}",
-            expectation_list(expected)
-        );
-        let kind = if at_end {
-            Kind::UnexpectedEnd
-        } else {
-            Kind::UnexpectedToken
-        };
-        let record = self.record(kind, message, range, &[]);
+        symbol: C1Symbol,
+        kind: Kind,
+        message: String,
+    ) -> ParseResult<TextRange> {
+        let range = self.bump()?;
+        let replacement = symbol.replacement(self.variant, self.source.text, range);
+        let record = self.record(kind, message, range, &[(range, replacement)]);
         self.diagnostics.push(record);
-        Abort
+        Ok(range)
     }
 
     fn parse_file(&mut self) -> File {
@@ -397,6 +364,8 @@ impl Parser<'_> {
             }
         }
         self.report_faults();
+        self.diagnostics
+            .sort_by_key(|record| (record.span.start.byte, record.span.end.byte));
         File {
             items,
             range: TextRange {
@@ -406,32 +375,30 @@ impl Parser<'_> {
         }
     }
 
-    /// Skips to the next `fn` or `export` after the item that began at token `start`.
-    fn resynchronize(&mut self, start: usize) {
-        let last = self.tokens.len().saturating_sub(1);
-        self.position = self.position.max(start + 1).min(last);
-        while !matches!(
-            self.peek(0),
-            TokenKind::Keyword(Keyword::Fn | Keyword::Export) | TokenKind::Eof
-        ) {
-            self.position += 1;
+    /// Consumes `fn`, or another language's word for it; after `export`, anything else is a
+    /// `misplaced-export`.
+    fn consume_fn(&mut self, export: Option<TextRange>) -> ParseResult<()> {
+        if self.consume_foreign(Context::Item)?.is_some() {
+            return Ok(());
         }
+        if self.at_keyword(Keyword::Fn) {
+            return self.bump().map(drop);
+        }
+        let Some(export) = export else {
+            let expected = [token(keyword(Keyword::Fn)), token(keyword(Keyword::Export))];
+            return Err(self.fail(&expected));
+        };
+        let message = "`export` is not followed by `fn`".to_string();
+        Err(self.stop(Kind::MisplacedExport, message, export))
     }
 
     fn parse_function(&mut self) -> ParseResult<Function> {
         let start = self.start();
+        self.in_impl = false;
         let export = self.eat(&keyword(Keyword::Export))?;
-        if !self.at_keyword(Keyword::Fn) {
-            let mut expected = vec![token(keyword(Keyword::Fn))];
-            if export.is_none() {
-                expected.push(token(keyword(Keyword::Export)));
-            }
-            return Err(self.fail(&expected));
-        }
-        self.bump()?;
+        self.consume_fn(export)?;
         let name = self.parse_name()?;
-        self.consume(TokenKind::LeftParen)?;
-        let params = self.parse_list(TokenKind::RightParen, true, Self::parse_param)?;
+        let params = self.delimited_list(Delimiter::Parenthesis, true, Self::parse_param)?;
         self.consume(TokenKind::Arrow)?;
         let result = self.parse_signature_type()?;
         let effects = self.parse_effects()?;
@@ -440,6 +407,7 @@ impl Parser<'_> {
         let spec = self.parse_clause(Keyword::Spec)?;
         let equiv = self.parse_equiv()?;
         self.consume_keyword(Keyword::Impl)?;
+        self.in_impl = true;
         let body = self.parse_block()?;
         Ok(Function {
             export,
@@ -458,7 +426,7 @@ impl Parser<'_> {
 
     fn parse_effects(&mut self) -> ParseResult<EffClause> {
         let start = self.start();
-        self.consume_keyword(Keyword::Eff)?;
+        self.consume_clause_keyword(Keyword::Eff)?;
         let mut effects = Vec::new();
         loop {
             self.consume_keyword(Keyword::Pure)?;
@@ -475,15 +443,29 @@ impl Parser<'_> {
 
     fn parse_clauses(&mut self, wanted: Keyword) -> ParseResult<Vec<Clause>> {
         let mut clauses = Vec::new();
-        while self.at_keyword(wanted) {
+        while self.at_clause(wanted) {
             clauses.push(self.parse_clause(wanted)?);
         }
         Ok(clauses)
     }
 
+    /// Whether the current token is the clause keyword `wanted`, or another language's word for
+    /// it.
+    fn at_clause(&self, wanted: Keyword) -> bool {
+        self.at_keyword(wanted) || self.foreign(Context::Clause) == Some(Foreign::Respell(wanted))
+    }
+
+    /// Consumes the clause keyword `wanted`, or another language's word for it.
+    fn consume_clause_keyword(&mut self, wanted: Keyword) -> ParseResult<TextRange> {
+        if self.foreign(Context::Clause) == Some(Foreign::Respell(wanted)) {
+            return self.respell(wanted);
+        }
+        self.consume_keyword(wanted)
+    }
+
     fn parse_clause(&mut self, wanted: Keyword) -> ParseResult<Clause> {
         let start = self.start();
-        self.consume_keyword(wanted)?;
+        self.consume_clause_keyword(wanted)?;
         let expression = self.parse_expression()?;
         Ok(Clause {
             expression,
@@ -495,9 +477,8 @@ impl Parser<'_> {
         let start = self.start();
         self.consume_keyword(Keyword::Equiv)?;
         self.consume_keyword(Keyword::Allow)?;
-        self.consume(TokenKind::LeftParen)?;
         let mut permissions =
-            self.parse_list(TokenKind::RightParen, true, Self::parse_permission)?;
+            self.delimited_list(Delimiter::Parenthesis, true, Self::parse_permission)?;
         permissions.sort();
         Ok(EquivClause {
             permissions,

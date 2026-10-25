@@ -136,7 +136,8 @@ impl Rejected {
         format!("{message}; also, {}", self.sentence())
     }
 
-    /// The fault of the comment's marker, which also deletes the runs when it has a repair.
+    /// The fault of the comment's marker, which also deletes the runs when it has a repair; a
+    /// deletion that touches the marker's edit joins it, so the edits stay separated.
     pub(super) fn merged_into(&self, mut marker: Fault) -> Fault {
         marker.message = self.note_to(&marker.message);
         let marker_span = marker
@@ -148,7 +149,24 @@ impl Rejected {
             return marker;
         };
         marker.span = Some(marker_span);
-        marker.repair.extend(self.deletions());
+        let edits = std::mem::take(&mut marker.repair);
+        marker.repair = joined(edits.into_iter().chain(self.deletions()));
         marker
     }
+}
+
+/// The edits, in source order, with each edit that starts where the previous one ends joined to
+/// it.
+fn joined(edits: impl Iterator<Item = (TextRange, String)>) -> Vec<(TextRange, String)> {
+    let mut joined: Vec<(TextRange, String)> = Vec::new();
+    for (edit_range, replacement) in edits {
+        match joined.last_mut() {
+            Some((previous, text)) if previous.end == edit_range.start => {
+                previous.end = edit_range.end;
+                text.push_str(&replacement);
+            }
+            _ => joined.push((edit_range, replacement)),
+        }
+    }
+    joined
 }
