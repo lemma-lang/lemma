@@ -9,7 +9,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+lemma-codegen = { path = "../lemma-codegen", version = "0.0.1" }
+llvm-sys = "221"
 
 [dev-dependencies]
 inkwell = { version = "0.10", features = ["llvm22-1"] }
-lemma-codegen = { path = "../lemma-codegen" }

@@ -142,6 +142,7 @@ version = "0.0.1"
 dependencies = [
  "inkwell",
  "lemma-codegen",
+ "llvm-sys",
 ]
 
 [[package]]
