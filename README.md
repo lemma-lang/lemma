@@ -101,13 +101,12 @@ The git hooks check the message on commit, formatting and spelling before commit
 ## Working with AI agents
 
 Lemma is built by AI agents as much as for them. [`AGENTS.md`](AGENTS.md) holds the rules every
-agent follows. Claude Code runs a chain of specialized roles, defined in `.claude/agents/`:
-the main session dispatches them, failing tests are written and committed before any code,
-and every change passes an exit gate (full suite green, tests untouched, review) before it is
-committed. Besides the usual roles (planner, tester, coder, reviewer, committer…), three are
-specific to Lemma: `proof-engineer` (Z3 obligations and spec quality), `perf-engineer`
-(measurements on Apple Silicon) and `language-designer` (ADRs and scope).
-Hooks in `.claude/hooks/` keep each role inside its zone. Details: [.claude/orchestration.md](.claude/orchestration.md).
+agent follows, whatever the tool. The task knowledge those rules need lives in
+[`.agents/skills/`](.agents/skills/), one skill per task: running the checks, writing tests,
+writing specs and judging proofs, reviewing a change, deciding a language question, measuring
+performance. Claude Code picks them up through `.claude/skills/`; other agents read them from
+`AGENTS.md`. The shape rules in `tools/rules/` hold the code-style rules on the lines a change
+touches, and CI runs their test cases.
 
 ## License
 

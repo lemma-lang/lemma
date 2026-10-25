@@ -37,10 +37,10 @@ deny:
 spell:
     typos
 
-# Agent orchestration: hook test suite and Rust shape rules.
+# Shape rules' own test cases; the local agent guards' suite when it is installed.
 rules:
-    .claude/hooks/tests/run.sh
-    ast-grep test -c .claude/rules/sgconfig.yml --skip-snapshot-tests
+    ast-grep test -c tools/rules/sgconfig.yml --skip-snapshot-tests
+    if [ -x .claude/hooks/tests/run.sh ]; then .claude/hooks/tests/run.sh; fi
 
 # Code coverage, HTML report in target/llvm-cov/html.
 cov:
