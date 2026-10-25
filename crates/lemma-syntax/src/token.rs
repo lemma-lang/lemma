@@ -1,5 +1,7 @@
 //! Tokens, their byte ranges, and the lexical faults attached to them.
 
+use std::fmt;
+
 use lemma_diagnostics::Kind;
 
 /// Which spelling of the C1 symbols is active: `sum`, `in`, `forall` or `Σ`, `∈`, `∀`.
@@ -10,6 +12,59 @@ pub enum C1Variant {
     Ascii,
     /// Variant U: `Σ`, `∈`, `∀`.
     Unicode,
+}
+
+/// One of the three symbols whose spelling the C1 variant chooses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum C1Symbol {
+    Sum,
+    In,
+    Forall,
+}
+
+impl C1Symbol {
+    pub(crate) fn token(self, variant: C1Variant) -> TokenKind {
+        match self {
+            Self::Sum => TokenKind::Sum(variant),
+            Self::In => TokenKind::In(variant),
+            Self::Forall => TokenKind::Forall(variant),
+        }
+    }
+
+    pub(crate) fn spelling(self, variant: C1Variant) -> &'static str {
+        match (self, variant) {
+            (Self::Sum, C1Variant::Ascii) => "sum",
+            (Self::In, C1Variant::Ascii) => "in",
+            (Self::Forall, C1Variant::Ascii) => "forall",
+            (Self::Sum, C1Variant::Unicode) => "\u{03A3}",
+            (Self::In, C1Variant::Unicode) => "\u{2208}",
+            (Self::Forall, C1Variant::Unicode) => "\u{2200}",
+        }
+    }
+
+    /// The text that replaces the symbol at `range` in `text` under `variant`: a word is padded
+    /// with a space on each side that touches a word character.
+    pub(crate) fn replacement(self, variant: C1Variant, text: &[u8], range: TextRange) -> String {
+        let spelling = self.spelling(variant);
+        if variant == C1Variant::Unicode {
+            return spelling.to_string();
+        }
+        let follows_word = range
+            .start
+            .checked_sub(1)
+            .and_then(|before| text.get(before))
+            .copied()
+            .is_some_and(is_word_byte);
+        let precedes_word = text.get(range.end).copied().is_some_and(is_word_byte);
+        let leading = if follows_word { " " } else { "" };
+        let trailing = if precedes_word { " " } else { "" };
+        format!("{leading}{spelling}{trailing}")
+    }
+}
+
+/// Whether `byte` can be part of a word: an ASCII letter, a digit or `_`.
+pub(crate) fn is_word_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
 /// A half-open range of byte offsets in the source text.
@@ -41,6 +96,17 @@ pub struct ScalarType {
     pub bits: u16,
 }
 
+impl fmt::Display for ScalarType {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let letter = match self.class {
+            ScalarClass::Unsigned => 'u',
+            ScalarClass::Signed => 'i',
+            ScalarClass::Float => 'f',
+        };
+        write!(formatter, "{letter}{}", self.bits)
+    }
+}
+
 /// A reserved vector type name such as `f32x4`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct VectorType {
@@ -48,6 +114,12 @@ pub struct VectorType {
     pub element: ScalarType,
     /// The number of lanes.
     pub lanes: u8,
+}
+
+impl fmt::Display for VectorType {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}x{}", self.element, self.lanes)
+    }
 }
 
 /// A reserved word that is neither a type name nor one of the three C1 words.
@@ -103,37 +175,48 @@ pub enum Keyword {
     Bool,
 }
 
+const KEYWORDS: [(&str, Keyword); 24] = [
+    ("export", Keyword::Export),
+    ("fn", Keyword::Fn),
+    ("eff", Keyword::Eff),
+    ("req", Keyword::Req),
+    ("ens", Keyword::Ens),
+    ("spec", Keyword::Spec),
+    ("equiv", Keyword::Equiv),
+    ("allow", Keyword::Allow),
+    ("impl", Keyword::Impl),
+    ("let", Keyword::Let),
+    ("loop", Keyword::Loop),
+    ("step", Keyword::Step),
+    ("carry", Keyword::Carry),
+    ("next", Keyword::Next),
+    ("return", Keyword::Return),
+    ("result", Keyword::Result),
+    ("true", Keyword::True),
+    ("false", Keyword::False),
+    ("ro", Keyword::Ro),
+    ("wo", Keyword::Wo),
+    ("pure", Keyword::Pure),
+    ("fp_reassoc", Keyword::FpReassoc),
+    ("fp_contract", Keyword::FpContract),
+    ("bool", Keyword::Bool),
+];
+
 impl Keyword {
     /// The keyword spelled `word`, if there is one.
     pub fn from_word(word: &str) -> Option<Self> {
-        let keyword = match word {
-            "export" => Self::Export,
-            "fn" => Self::Fn,
-            "eff" => Self::Eff,
-            "req" => Self::Req,
-            "ens" => Self::Ens,
-            "spec" => Self::Spec,
-            "equiv" => Self::Equiv,
-            "allow" => Self::Allow,
-            "impl" => Self::Impl,
-            "let" => Self::Let,
-            "loop" => Self::Loop,
-            "step" => Self::Step,
-            "carry" => Self::Carry,
-            "next" => Self::Next,
-            "return" => Self::Return,
-            "result" => Self::Result,
-            "true" => Self::True,
-            "false" => Self::False,
-            "ro" => Self::Ro,
-            "wo" => Self::Wo,
-            "pure" => Self::Pure,
-            "fp_reassoc" => Self::FpReassoc,
-            "fp_contract" => Self::FpContract,
-            "bool" => Self::Bool,
-            _ => return None,
-        };
-        Some(keyword)
+        KEYWORDS
+            .iter()
+            .find(|(spelling, _)| *spelling == word)
+            .map(|(_, keyword)| *keyword)
+    }
+
+    /// The keyword's spelling.
+    pub fn as_str(self) -> &'static str {
+        KEYWORDS
+            .iter()
+            .find(|(_, keyword)| *keyword == self)
+            .map_or("", |(spelling, _)| spelling)
     }
 }
 
@@ -222,6 +305,67 @@ pub enum TokenKind {
     Error,
     /// The end of the input.
     Eof,
+}
+
+impl TokenKind {
+    /// The fixed spelling of a keyword, punctuation, operator or C1 token; `None` for names,
+    /// types, literals, lookalikes and the markers of rejected text and of the end.
+    pub fn spelling(&self) -> Option<&'static str> {
+        let spelling = match self {
+            Self::Keyword(keyword) => keyword.as_str(),
+            Self::LeftParen => "(",
+            Self::RightParen => ")",
+            Self::LeftBracket => "[",
+            Self::RightBracket => "]",
+            Self::LeftBrace => "{",
+            Self::RightBrace => "}",
+            Self::Comma => ",",
+            Self::Colon => ":",
+            Self::Dot => ".",
+            Self::Arrow => "->",
+            Self::Equals => "=",
+            Self::Ampersand => "&",
+            Self::DotDotLess => "..<",
+            Self::Plus => "+",
+            Self::Minus => "-",
+            Self::Star => "*",
+            Self::Slash => "/",
+            Self::Percent => "%",
+            Self::EqualEqual => "==",
+            Self::BangEqual => "!=",
+            Self::Less => "<",
+            Self::LessEqual => "<=",
+            Self::Greater => ">",
+            Self::GreaterEqual => ">=",
+            Self::AndAnd => "&&",
+            Self::OrOr => "||",
+            Self::Bang => "!",
+            Self::Sum(variant) => C1Symbol::Sum.spelling(*variant),
+            Self::In(variant) => C1Symbol::In.spelling(*variant),
+            Self::Forall(variant) => C1Symbol::Forall.spelling(*variant),
+            Self::AlmostEqual => "\u{2248}",
+            Self::Name(_)
+            | Self::ScalarType(_)
+            | Self::VectorType(_)
+            | Self::Int(_)
+            | Self::Float(_)
+            | Self::Align(_)
+            | Self::MembershipLookalike
+            | Self::Error
+            | Self::Eof => return None,
+        };
+        Some(spelling)
+    }
+
+    /// The C1 symbol this token spells and the variant of its spelling.
+    pub(crate) fn c1_symbol(&self) -> Option<(C1Symbol, C1Variant)> {
+        match self {
+            Self::Sum(variant) => Some((C1Symbol::Sum, *variant)),
+            Self::In(variant) => Some((C1Symbol::In, *variant)),
+            Self::Forall(variant) => Some((C1Symbol::Forall, *variant)),
+            _ => None,
+        }
+    }
 }
 
 /// A lexical fault: a diagnostic kind, its message, and the edits of its repair, if any.

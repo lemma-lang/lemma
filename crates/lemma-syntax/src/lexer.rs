@@ -6,8 +6,8 @@ mod number;
 use lemma_diagnostics::Kind;
 
 use crate::token::{
-    C1Variant, Comment, Fault, Keyword, Lexed, ScalarClass, ScalarType, TextRange, Token,
-    TokenKind, VectorType,
+    C1Symbol, C1Variant, Comment, Fault, Keyword, Lexed, ScalarClass, ScalarType, TextRange, Token,
+    TokenKind, VectorType, is_word_byte,
 };
 
 const SIGMA: char = '\u{03A3}';
@@ -102,10 +102,6 @@ fn fault(kind: Kind, message: String, repair: Vec<(TextRange, String)>) -> Fault
         message,
         repair,
     }
-}
-
-fn is_word_byte(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
 fn is_blank_byte(byte: u8) -> bool {
@@ -212,34 +208,6 @@ fn operator(rest: &[u8]) -> Option<(usize, Operator)> {
         _ => return None,
     };
     Some(found)
-}
-
-#[derive(Clone, Copy)]
-enum C1Symbol {
-    Sum,
-    In,
-    Forall,
-}
-
-impl C1Symbol {
-    fn token(self, variant: C1Variant) -> TokenKind {
-        match self {
-            Self::Sum => TokenKind::Sum(variant),
-            Self::In => TokenKind::In(variant),
-            Self::Forall => TokenKind::Forall(variant),
-        }
-    }
-
-    fn spelling(self, variant: C1Variant) -> &'static str {
-        match (self, variant) {
-            (Self::Sum, C1Variant::Ascii) => "sum",
-            (Self::In, C1Variant::Ascii) => "in",
-            (Self::Forall, C1Variant::Ascii) => "forall",
-            (Self::Sum, C1Variant::Unicode) => "\u{03A3}",
-            (Self::In, C1Variant::Unicode) => "\u{2208}",
-            (Self::Forall, C1Variant::Unicode) => "\u{2200}",
-        }
-    }
 }
 
 /// One scanned token: what it is, where it ends, and the faults of its own bytes.
@@ -683,6 +651,10 @@ impl Lexer<'_> {
             while self.precedes_word_byte(end) {
                 end += 1;
             }
+            if let Some((run_end, _)) = self.zero_width_run_inside_word(end) {
+                end = run_end;
+                continue;
+            }
             let after_exponent_letter = end > start && self.byte(end - 1) == Some(b'e');
             let continues = match (self.byte(end), self.byte(end + 1)) {
                 (Some(b'.'), Some(next)) => next != b'.',
@@ -697,12 +669,41 @@ impl Lexer<'_> {
         }
     }
 
+    /// The bytes of the number at `start..end` without its zero-width code points, the source
+    /// offset of each remaining byte (and of the end), and the fault of each code point dropped.
+    fn number_lexeme(&self, start: usize, end: usize) -> (Vec<u8>, Vec<usize>, Vec<Fault>) {
+        let mut lexeme = Vec::new();
+        let mut offsets = Vec::new();
+        let mut faults = Vec::new();
+        let mut position = start;
+        while position < end {
+            if let Some(Decoded::Char(character, length)) = decode(self.bytes, position)
+                && ZERO_WIDTH.contains(&character)
+            {
+                faults.push(space_fault(character, position, length, ""));
+                position += length;
+                continue;
+            }
+            lexeme.extend(self.byte(position));
+            offsets.push(position);
+            position += 1;
+        }
+        offsets.push(end);
+        (lexeme, offsets, faults)
+    }
+
     fn scan_number(&self, start: usize) -> Scanned {
         let end = self.number_end(start);
-        let lexeme = self.bytes.get(start..end).unwrap_or_default();
-        let Some(mut literal) = number::classify(lexeme, start) else {
-            let message = format!("`{}` is not a valid number", self.text(start, end));
-            return Scanned::rejected(Kind::InvalidNumber, message, end);
+        let (lexeme, offsets, mut faults) = self.number_lexeme(start, end);
+        let spelled = String::from_utf8_lossy(&lexeme).into_owned();
+        let Some(mut literal) = number::classify(&lexeme, &offsets) else {
+            let message = format!("`{spelled}` is not a valid number");
+            faults.push(fault(Kind::InvalidNumber, message, Vec::new()));
+            return Scanned {
+                kind: TokenKind::Error,
+                end,
+                faults,
+            };
         };
         let kind = if literal.is_float {
             TokenKind::Float(literal.spelling.clone())
@@ -718,18 +719,15 @@ impl Lexer<'_> {
             first.1 = " 0".to_string();
         }
         if literal.edits.is_empty() {
-            return Scanned::plain(kind, end);
+            return Scanned { kind, end, faults };
         }
         let message = format!(
-            "`{}` is not a valid number; write `{}`",
-            self.text(start, end),
+            "`{spelled}` is not a valid number; write `{}`",
             literal.spelling
         );
-        Scanned {
-            kind,
-            end,
-            faults: vec![fault(Kind::InvalidNumber, message, literal.edits)],
-        }
+        faults.push(fault(Kind::InvalidNumber, message, literal.edits));
+        faults.sort_by_key(|fault| fault.repair.first().map_or(usize::MAX, |edit| edit.0.start));
+        Scanned { kind, end, faults }
     }
 
     fn scan_unicode(&self, start: usize, character: char, length: usize) -> Scanned {
@@ -771,15 +769,7 @@ impl Lexer<'_> {
     ) -> Scanned {
         let end = start + length;
         let spelling = symbol.spelling(self.variant);
-        let mut replacement = String::new();
-        let pad = self.variant == C1Variant::Ascii;
-        if pad && self.follows_word_byte(start) {
-            replacement.push(' ');
-        }
-        replacement.push_str(spelling);
-        if pad && self.precedes_word_byte(end) {
-            replacement.push(' ');
-        }
+        let replacement = symbol.replacement(self.variant, self.bytes, range(start, end));
         let message = format!(
             "`{character}` (U+{:04X}) looks like `{spelling}`",
             u32::from(character)

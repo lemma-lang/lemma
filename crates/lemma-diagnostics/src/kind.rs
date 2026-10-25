@@ -135,6 +135,8 @@ pub enum Kind {
     MisplacedExport,
     /// The `unexpected-end` kind, of class `syntax`.
     UnexpectedEnd,
+    /// The `nesting-limit` kind, of class `syntax`.
+    NestingLimit,
     /// The `unknown-name` kind, of class `type-or-layout`.
     UnknownName,
     /// The `duplicate-name` kind, of class `type-or-layout`.
@@ -230,6 +232,7 @@ impl Kind {
         Self::ResultOutsideEns,
         Self::MisplacedExport,
         Self::UnexpectedEnd,
+        Self::NestingLimit,
         Self::UnknownName,
         Self::DuplicateName,
         Self::BuiltinName,
@@ -304,6 +307,7 @@ impl Kind {
             Self::ResultOutsideEns => "result-outside-ens",
             Self::MisplacedExport => "misplaced-export",
             Self::UnexpectedEnd => "unexpected-end",
+            Self::NestingLimit => "nesting-limit",
             Self::UnknownName => "unknown-name",
             Self::DuplicateName => "duplicate-name",
             Self::BuiltinName => "builtin-name",
@@ -383,7 +387,8 @@ impl Kind {
             | Self::MisplacedReturn
             | Self::ResultOutsideEns
             | Self::MisplacedExport
-            | Self::UnexpectedEnd => FailureClass::Syntax,
+            | Self::UnexpectedEnd
+            | Self::NestingLimit => FailureClass::Syntax,
             Self::UnknownName
             | Self::DuplicateName
             | Self::BuiltinName

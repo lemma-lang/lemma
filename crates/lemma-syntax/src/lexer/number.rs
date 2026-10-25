@@ -14,7 +14,7 @@ pub(super) struct Literal {
 
 struct Reader<'a> {
     lexeme: &'a [u8],
-    base: usize,
+    offsets: &'a [usize],
     index: usize,
     spelling: String,
     edits: Vec<(TextRange, String)>,
@@ -32,12 +32,24 @@ impl Reader<'_> {
         }
     }
 
+    /// The source offset of lexeme byte `index`, or of the lexeme's end past the last byte.
+    fn offset(&self, index: usize) -> usize {
+        self.offsets
+            .get(index)
+            .or_else(|| self.offsets.last())
+            .copied()
+            .unwrap_or_default()
+    }
+
     fn edit(&mut self, from: usize, to: usize, replacement: &str) {
-        let range = TextRange {
-            start: self.base + from,
-            end: self.base + to,
+        let start = self.offset(from);
+        let end = if to > from {
+            self.offset(to - 1) + 1
+        } else {
+            start
         };
-        self.edits.push((range, replacement.to_string()));
+        self.edits
+            .push((TextRange { start, end }, replacement.to_string()));
     }
 
     fn insert(&mut self, text: &str) {
@@ -94,14 +106,15 @@ impl Reader<'_> {
     }
 }
 
-/// Reads `lexeme`, which starts at source offset `base`, as a literal.
+/// Reads `lexeme` as a literal; `offsets` holds the source offset of each of its bytes, then the
+/// offset of its end.
 ///
 /// `None` means no single repair makes it one: a leading zero, a hexadecimal literal, or any
 /// other malformed text.
-pub(super) fn classify(lexeme: &[u8], base: usize) -> Option<Literal> {
+pub(super) fn classify(lexeme: &[u8], offsets: &[usize]) -> Option<Literal> {
     let mut reader = Reader {
         lexeme,
-        base,
+        offsets,
         index: 0,
         spelling: String::new(),
         edits: Vec::new(),
