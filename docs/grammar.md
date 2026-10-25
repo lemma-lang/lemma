@@ -479,6 +479,12 @@ AST. `lemma check` accepts any layout; the canonical form is what is stored and 
   indented two spaces. A block's `{` ends the line that opens it; its statements are one per line,
   two spaces deeper than that line; its `}` is on a line of its own at that line's indentation. So
   in an `impl` block, statements are at four spaces, and in a loop body two deeper than the `loop`.
+- **Empty lines and line ends.** One empty line separates two items, and the last item from the
+  comments that follow it (below); there is no other empty line: none at the start of the file,
+  between clauses, statements or carries, or at the end. The comments attached to an item belong to
+  it, so the empty line goes before them, never between them and the `fn` line. Every line ends
+  with LF, the last one included: the output ends with exactly one LF, and a file with no item and
+  no comment formats to the empty text.
 - **Sum and quantifier bodies.** The body of a `sum` or a `forall` is an expression, not a block of
   statements, and stays on its line: `{ e }`, with one space inside each brace, as in dot's
   `sum(i: u64 in 0..<n) { a[i] * b[i] }`. The two rules above for blocks apply to the statement
@@ -496,7 +502,35 @@ AST. `lemma check` accepts any layout; the canonical form is what is stored and 
 - Parentheses as written; permissions in table order.
 - A comment is attached to the item, clause or statement it precedes, or, when it follows code on
   the same line, to that line's construct; it is printed in the same place, preceded by one space
-  when it trails code.
+  when it trails code. The bullets below settle the places that the canonical form's lines cannot
+  keep. Comments printed at the same place keep their source order.
+- **Trailing comments.** A comment trails code when it follows, on the same line of the input, the
+  last token of a line of the canonical form: `req n % 16 == 0 // why`, a carry and its comma,
+  `impl { // why`. It stays at the end of that line.
+- **Comments inside a line.** A comment between two tokens that the canonical form prints on the
+  same line cannot stay there, whether it trailed code or stood on its own line in the input: it
+  leaves that line, and is placed as a comment on its own line just before it (next bullet). In a
+  signature written over several lines, `n: u64, // count` moves above the `fn` line, at column 0,
+  after the item's other comments; a comment inside a `req` expression moves above the `req` line,
+  at two spaces; one inside a single carry, `carry(c: T = e) {`, moves above the `loop` line.
+- **Comments on their own line.** A comment on its own line before a line of the canonical form is
+  printed on its own line just before it, at its indentation: before an item at column 0, a clause
+  at two spaces, a statement or a carry at its own indentation. Before a closing `}`, or before the
+  `) {` that closes a carry list printed over several lines, it stays before it, two spaces deeper
+  than that line: at the indentation of the block's statements, or of the carries. Comments after
+  the last item stay after it, at column 0, separated from it by one empty line.
+- **Comment text.** A comment is printed as written, `//` included (`///` stays `///`, and no space
+  is added after `//`), minus the spaces, tabs and CR at its end. A comment runs to the line feed
+  (section 2), so the CR of a CRLF line end belongs to its text and is dropped with it; the other
+  CRs of a CRLF input are whitespace. A CRLF input therefore formats to LF line ends only.
+
+The formatter formats only a text with no syntax diagnostic. When the lexer or the parser reports
+any diagnostic of section 7, with a repair or without, the formatter returns those diagnostics and
+no text: it never formats around an error. Printing the recovered AST would apply the repairs, which
+the toolchain offers and never applies ([`docs/diagnostics.md`](diagnostics.md), section 3), and
+would drop every function an unrepaired diagnostic ended. The checker's and the verifier's
+diagnostics do not concern it: a text that parses without diagnostic formats, whether or not it
+type-checks.
 
 ## 6. What the verifier and codegen receive
 
