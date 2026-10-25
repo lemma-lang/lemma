@@ -139,6 +139,10 @@ dependencies = [
 [[package]]
 name = "lemma-jit"
 version = "0.0.1"
+dependencies = [
+ "inkwell",
+ "lemma-codegen",
+]
 
 [[package]]
 name = "lemma-syntax"
