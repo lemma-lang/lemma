@@ -9,3 +9,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+lemma-diagnostics = { path = "../lemma-diagnostics" }
+
+[dev-dependencies]
+insta = "1"
+proptest = { version = "1", default-features = false, features = ["std"] }
