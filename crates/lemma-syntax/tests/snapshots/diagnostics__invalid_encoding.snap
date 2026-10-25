@@ -1,0 +1,11 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"invalid-encoding","class":"syntax","message":"byte 0xFF is not UTF-8","span":{"file":"invalid_encoding.lm","start":{"byte":58,"line":1,"column":59},"end":{"byte":59,"line":1,"column":60}}}
+
+error[invalid-encoding]: byte 0xFF is not UTF-8
+ --> invalid_encoding.lm:1:59
+  |
+1 | fn f() -> u64 eff pure spec 0 equiv allow() impl { return � }
+  |                                                           ^

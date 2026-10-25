@@ -1,0 +1,27 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"trailing-comma","class":"syntax","message":"a list takes no trailing comma","span":{"file":"repaired_then_unrepaired.lm","start":{"byte":11,"line":1,"column":12},"end":{"byte":12,"line":1,"column":13}},"repair":[{"span":{"file":"repaired_then_unrepaired.lm","start":{"byte":11,"line":1,"column":12},"end":{"byte":12,"line":1,"column":13}},"replacement":""}]}
+{"kind":"lookalike","class":"syntax","message":"U+2265 looks like `>=`","span":{"file":"repaired_then_unrepaired.lm","start":{"byte":36,"line":1,"column":37},"end":{"byte":39,"line":1,"column":38}},"repair":[{"span":{"file":"repaired_then_unrepaired.lm","start":{"byte":36,"line":1,"column":37},"end":{"byte":39,"line":1,"column":38}},"replacement":">="}]}
+{"kind":"invalid-character","class":"syntax","message":"`$` begins no token","span":{"file":"repaired_then_unrepaired.lm","start":{"byte":49,"line":1,"column":48},"end":{"byte":50,"line":1,"column":49}}}
+
+error[trailing-comma]: a list takes no trailing comma
+ --> repaired_then_unrepaired.lm:1:12
+  |
+1 | fn f(n: u64,) -> u64 eff pure req n ≥ 1 spec n $ 1 equiv allow() impl { return n }
+  |            ^
+  = repair: replace repaired_then_unrepaired.lm:1:12-1:13 with ""
+
+error[lookalike]: U+2265 looks like `>=`
+ --> repaired_then_unrepaired.lm:1:37
+  |
+1 | fn f(n: u64,) -> u64 eff pure req n ≥ 1 spec n $ 1 equiv allow() impl { return n }
+  |                                     ^
+  = repair: replace repaired_then_unrepaired.lm:1:37-1:38 with ">="
+
+error[invalid-character]: `$` begins no token
+ --> repaired_then_unrepaired.lm:1:48
+  |
+1 | fn f(n: u64,) -> u64 eff pure req n ≥ 1 spec n $ 1 equiv allow() impl { return n }
+  |                                                ^

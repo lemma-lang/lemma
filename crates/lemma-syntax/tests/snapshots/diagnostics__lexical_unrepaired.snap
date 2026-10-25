@@ -1,0 +1,39 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"invalid-character","class":"syntax","message":"`$` begins no token","span":{"file":"lexical_unrepaired.lm","start":{"byte":28,"line":1,"column":29},"end":{"byte":29,"line":1,"column":30}}}
+{"kind":"non-ascii","class":"syntax","message":"U+00E9 is not ASCII","span":{"file":"lexical_unrepaired.lm","start":{"byte":90,"line":2,"column":29},"end":{"byte":92,"line":2,"column":30}}}
+{"kind":"invalid-identifier","class":"syntax","message":"`C` is not an identifier: use lowercase letters, digits and `_`, starting with a letter","span":{"file":"lexical_unrepaired.lm","start":{"byte":128,"line":3,"column":4},"end":{"byte":129,"line":3,"column":5}}}
+{"kind":"range-operator","class":"syntax","message":"`..` is not a range; write `lo..<hi`","span":{"file":"lexical_unrepaired.lm","start":{"byte":216,"line":4,"column":30},"end":{"byte":218,"line":4,"column":32}}}
+{"kind":"invalid-number","class":"syntax","message":"`007` is not a valid number: an integer literal has no leading zero","span":{"file":"lexical_unrepaired.lm","start":{"byte":280,"line":5,"column":29},"end":{"byte":283,"line":5,"column":32}}}
+
+error[invalid-character]: `$` begins no token
+ --> lexical_unrepaired.lm:1:29
+  |
+1 | fn a() -> u64 eff pure spec $ equiv allow() impl { return 0 }
+  |                             ^
+
+error[non-ascii]: U+00E9 is not ASCII
+ --> lexical_unrepaired.lm:2:29
+  |
+2 | fn b() -> u64 eff pure spec é equiv allow() impl { return 0 }
+  |                             ^
+
+error[invalid-identifier]: `C` is not an identifier: use lowercase letters, digits and `_`, starting with a letter
+ --> lexical_unrepaired.lm:3:4
+  |
+3 | fn C() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |    ^
+
+error[range-operator]: `..` is not a range; write `lo..<hi`
+ --> lexical_unrepaired.lm:4:30
+  |
+4 | fn d() -> u64 eff pure spec 0..1 equiv allow() impl { return 0 }
+  |                              ^^
+
+error[invalid-number]: `007` is not a valid number: an integer literal has no leading zero
+ --> lexical_unrepaired.lm:5:29
+  |
+5 | fn e() -> u64 eff pure spec 007 equiv allow() impl { return 0 }
+  |                             ^^^

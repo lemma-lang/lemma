@@ -1,0 +1,32 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"reserved-word","class":"syntax","message":"`loop` is reserved and cannot be used as a name","span":{"file":"reserved_word.lm","start":{"byte":3,"line":1,"column":4},"end":{"byte":7,"line":1,"column":8}}}
+{"kind":"reserved-word","class":"syntax","message":"`u8` is reserved and cannot be used as a name","span":{"file":"reserved_word.lm","start":{"byte":68,"line":2,"column":4},"end":{"byte":70,"line":2,"column":6}}}
+{"kind":"reserved-word","class":"syntax","message":"`sum` is reserved and cannot be used as a name","span":{"file":"reserved_word.lm","start":{"byte":189,"line":3,"column":62},"end":{"byte":192,"line":3,"column":65}}}
+{"kind":"reserved-word","class":"syntax","message":"U+03A3 is reserved and cannot be used as a name","span":{"file":"reserved_word.lm","start":{"byte":276,"line":4,"column":62},"end":{"byte":278,"line":4,"column":63}}}
+
+error[reserved-word]: `loop` is reserved and cannot be used as a name
+ --> reserved_word.lm:1:4
+  |
+1 | fn loop() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |    ^^^^
+
+error[reserved-word]: `u8` is reserved and cannot be used as a name
+ --> reserved_word.lm:2:4
+  |
+2 | fn u8() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |    ^^
+
+error[reserved-word]: `sum` is reserved and cannot be used as a name
+ --> reserved_word.lm:3:62
+  |
+3 | fn f(n: u64) -> u64 eff pure spec n equiv allow() impl { let sum: u64 = n return sum }
+  |                                                              ^^^
+
+error[reserved-word]: U+03A3 is reserved and cannot be used as a name
+ --> reserved_word.lm:4:62
+  |
+4 | fn k(n: u64) -> u64 eff pure spec n equiv allow() impl { let Σ: u64 = n return n }
+  |                                                              ^

@@ -1,0 +1,52 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"lookalike","class":"syntax","message":"U+2265 looks like `>=`","span":{"file":"lexical_repaired.lm","start":{"byte":39,"line":3,"column":9},"end":{"byte":42,"line":3,"column":10}},"repair":[{"span":{"file":"lexical_repaired.lm","start":{"byte":39,"line":3,"column":9},"end":{"byte":42,"line":3,"column":10}},"replacement":">="}]}
+{"kind":"lookalike","class":"syntax","message":"U+2211 looks like `sum`","span":{"file":"lexical_repaired.lm","start":{"byte":52,"line":4,"column":8},"end":{"byte":55,"line":4,"column":9}},"repair":[{"span":{"file":"lexical_repaired.lm","start":{"byte":52,"line":4,"column":8},"end":{"byte":55,"line":4,"column":9}},"replacement":"sum"}]}
+{"kind":"lookalike","class":"syntax","message":"U+2212 looks like `-`","span":{"file":"lexical_repaired.lm","start":{"byte":79,"line":4,"column":33},"end":{"byte":82,"line":4,"column":34}},"repair":[{"span":{"file":"lexical_repaired.lm","start":{"byte":79,"line":4,"column":33},"end":{"byte":82,"line":4,"column":34}},"replacement":"-"}]}
+{"kind":"invalid-number","class":"syntax","message":"`.5` is not a valid number; write `0.5`","span":{"file":"lexical_repaired.lm","start":{"byte":83,"line":4,"column":35},"end":{"byte":85,"line":4,"column":37}},"repair":[{"span":{"file":"lexical_repaired.lm","start":{"byte":83,"line":4,"column":35},"end":{"byte":83,"line":4,"column":35}},"replacement":"0"}]}
+{"kind":"path-separator","class":"syntax","message":"`::` is not a path separator; write `.`","span":{"file":"lexical_repaired.lm","start":{"byte":135,"line":7,"column":25},"end":{"byte":137,"line":7,"column":27}},"repair":[{"span":{"file":"lexical_repaired.lm","start":{"byte":135,"line":7,"column":25},"end":{"byte":137,"line":7,"column":27}},"replacement":"."}]}
+{"kind":"invalid-number","class":"syntax","message":"`1_000.0` is not a valid number; write `1000.0`","span":{"file":"lexical_repaired.lm","start":{"byte":143,"line":7,"column":33},"end":{"byte":150,"line":7,"column":40}},"repair":[{"span":{"file":"lexical_repaired.lm","start":{"byte":144,"line":7,"column":34},"end":{"byte":145,"line":7,"column":35}},"replacement":""}]}
+
+error[lookalike]: U+2265 looks like `>=`
+ --> lexical_repaired.lm:3:9
+  |
+3 |   req n ≥ 1
+  |         ^
+  = repair: replace lexical_repaired.lm:3:9-3:10 with ">="
+
+error[lookalike]: U+2211 looks like `sum`
+ --> lexical_repaired.lm:4:8
+  |
+4 |   spec ∑(i: u64 in 0..<n) { i } − .5
+  |        ^
+  = repair: replace lexical_repaired.lm:4:8-4:9 with "sum"
+
+error[lookalike]: U+2212 looks like `-`
+ --> lexical_repaired.lm:4:33
+  |
+4 |   spec ∑(i: u64 in 0..<n) { i } − .5
+  |                                 ^
+  = repair: replace lexical_repaired.lm:4:33-4:34 with "-"
+
+error[invalid-number]: `.5` is not a valid number; write `0.5`
+ --> lexical_repaired.lm:4:35
+  |
+4 |   spec ∑(i: u64 in 0..<n) { i } − .5
+  |                                   ^^
+  = repair: replace lexical_repaired.lm:4:35-4:35 with "0"
+
+error[path-separator]: `::` is not a path separator; write `.`
+ --> lexical_repaired.lm:7:25
+  |
+7 |     let v: f32x4 = f32x4::splat(1_000.0)
+  |                         ^^
+  = repair: replace lexical_repaired.lm:7:25-7:27 with "."
+
+error[invalid-number]: `1_000.0` is not a valid number; write `1000.0`
+ --> lexical_repaired.lm:7:33
+  |
+7 |     let v: f32x4 = f32x4::splat(1_000.0)
+  |                                 ^^^^^^^
+  = repair: replace lexical_repaired.lm:7:34-7:35 with ""

@@ -2,9 +2,9 @@
 source: crates/lemma-syntax/tests/diagnostics.rs
 expression: "renderings(file, variant)?"
 ---
-{"kind":"assignment","class":"syntax","message":"a statement cannot begin with the name `var`; a value is defined once, by `let`, a carry or `next`","span":{"file":"var_without_type.lm","start":{"byte":63,"line":6,"column":5},"end":{"byte":66,"line":6,"column":8}}}
+{"kind":"assignment","class":"syntax","message":"a statement cannot begin with `var`; a value is defined once, by `let`, a carry or `next`","span":{"file":"var_without_type.lm","start":{"byte":63,"line":6,"column":5},"end":{"byte":66,"line":6,"column":8}}}
 
-error[assignment]: a statement cannot begin with the name `var`; a value is defined once, by `let`, a carry or `next`
+error[assignment]: a statement cannot begin with `var`; a value is defined once, by `let`, a carry or `next`
  --> var_without_type.lm:6:5
   |
 6 |     var x = 1

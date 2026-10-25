@@ -1,0 +1,11 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"lookalike","class":"syntax","message":"U+2248 is not an operator of the language","span":{"file":"almost_equal.lm","start":{"byte":35,"line":1,"column":36},"end":{"byte":38,"line":1,"column":37}}}
+
+error[lookalike]: U+2248 is not an operator of the language
+ --> almost_equal.lm:1:36
+  |
+1 | fn f(n: u64) -> u64 eff pure req n ≈ 1 spec n equiv allow() impl { return n }
+  |                                    ^

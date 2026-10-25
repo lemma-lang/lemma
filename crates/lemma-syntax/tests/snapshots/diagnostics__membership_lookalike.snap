@@ -1,0 +1,19 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"lookalike","class":"syntax","message":"U+03F5 looks like `in`","span":{"file":"membership_lookalike.lm","start":{"byte":45,"line":1,"column":46},"end":{"byte":47,"line":1,"column":47}},"repair":[{"span":{"file":"membership_lookalike.lm","start":{"byte":45,"line":1,"column":46},"end":{"byte":47,"line":1,"column":47}},"replacement":"in"}]}
+{"kind":"non-ascii","class":"syntax","message":"U+03B5 is not ASCII","span":{"file":"membership_lookalike.lm","start":{"byte":121,"line":2,"column":29},"end":{"byte":123,"line":2,"column":30}}}
+
+error[lookalike]: U+03F5 looks like `in`
+ --> membership_lookalike.lm:1:46
+  |
+1 | fn f(n: u64) -> u64 eff pure spec sum(i: u64 ϵ 0..<n) { i } equiv allow() impl { return n }
+  |                                              ^
+  = repair: replace membership_lookalike.lm:1:46-1:47 with "in"
+
+error[non-ascii]: U+03B5 is not ASCII
+ --> membership_lookalike.lm:2:29
+  |
+2 | fn g() -> u64 eff pure spec ε equiv allow() impl { return 0 }
+  |                             ^

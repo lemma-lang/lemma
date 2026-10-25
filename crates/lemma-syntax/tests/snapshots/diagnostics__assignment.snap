@@ -2,9 +2,9 @@
 source: crates/lemma-syntax/tests/diagnostics.rs
 expression: "renderings(file, variant)?"
 ---
-{"kind":"assignment","class":"syntax","message":"a statement cannot begin with the name `m`; a value is defined once, by `let`, a carry or `next`","span":{"file":"assignment.lm","start":{"byte":57,"line":1,"column":58},"end":{"byte":58,"line":1,"column":59}}}
+{"kind":"assignment","class":"syntax","message":"a statement cannot begin with `m`; a value is defined once, by `let`, a carry or `next`","span":{"file":"assignment.lm","start":{"byte":57,"line":1,"column":58},"end":{"byte":58,"line":1,"column":59}}}
 
-error[assignment]: a statement cannot begin with the name `m`; a value is defined once, by `let`, a carry or `next`
+error[assignment]: a statement cannot begin with `m`; a value is defined once, by `let`, a carry or `next`
  --> assignment.lm:1:58
   |
 1 | fn f(n: u64) -> u64 eff pure spec n equiv allow() impl { m = n return m }

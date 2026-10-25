@@ -2,10 +2,10 @@
 source: crates/lemma-syntax/tests/diagnostics.rs
 expression: "renderings(file, variant)?"
 ---
-{"kind":"unclosed-delimiter","class":"syntax","message":"`(` is not closed before `spec`","span":{"file":"unclosed_delimiter_unrepaired.lm","start":{"byte":42,"line":3,"column":12},"end":{"byte":42,"line":3,"column":12}}}
+{"kind":"unclosed-delimiter","class":"syntax","message":"`(` and 1 more are not closed before `spec`","span":{"file":"unclosed_delimiter_unrepaired.lm","start":{"byte":42,"line":3,"column":12},"end":{"byte":42,"line":3,"column":12}}}
 {"kind":"unclosed-delimiter","class":"syntax","message":"`{` is not closed before `fn`","span":{"file":"unclosed_delimiter_unrepaired.lm","start":{"byte":171,"line":14,"column":13},"end":{"byte":171,"line":14,"column":13}}}
 
-error[unclosed-delimiter]: `(` is not closed before `spec`
+error[unclosed-delimiter]: `(` and 1 more are not closed before `spec`
  --> unclosed_delimiter_unrepaired.lm:3:12
   |
 3 |   req g(h(n

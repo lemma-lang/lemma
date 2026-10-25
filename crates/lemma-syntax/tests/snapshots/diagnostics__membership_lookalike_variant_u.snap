@@ -1,0 +1,12 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"lookalike","class":"syntax","message":"U+03B5 looks like `∈`","span":{"file":"membership_lookalike_variant_u.lm","start":{"byte":44,"line":1,"column":44},"end":{"byte":46,"line":1,"column":45}},"repair":[{"span":{"file":"membership_lookalike_variant_u.lm","start":{"byte":44,"line":1,"column":44},"end":{"byte":46,"line":1,"column":45}},"replacement":"∈"}]}
+
+error[lookalike]: U+03B5 looks like `∈`
+ --> membership_lookalike_variant_u.lm:1:44
+  |
+1 | fn f(n: u64) -> u64 eff pure spec Σ(i: u64 ε 0..<n) { i } equiv allow() impl { return n }
+  |                                            ^
+  = repair: replace membership_lookalike_variant_u.lm:1:44-1:45 with "∈"
