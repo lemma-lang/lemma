@@ -1,5 +1,7 @@
 //! The pinned configuration of each target, and the target machine built from it.
 
+use std::error::Error;
+
 use lemma_codegen::Target;
 
 /// Triple, CPU and features of each target, as `docs/adr/0003-targets.md` pins them.
@@ -43,14 +45,14 @@ fn owned((target, triple, cpu, features): (Target, &str, &str, &str)) -> Configu
     )
 }
 
-fn machine_configuration(target: Target) -> Configuration {
-    let machine = target.target_machine().unwrap();
-    (
+fn machine_configuration(target: Target) -> Result<Configuration, Box<dyn Error>> {
+    let machine = target.target_machine()?;
+    Ok((
         target,
-        machine.get_triple().as_str().to_str().unwrap().to_string(),
+        machine.get_triple().as_str().to_str()?.to_string(),
         machine.get_cpu().to_string(),
-        machine.get_feature_string().to_str().unwrap().to_string(),
-    )
+        machine.get_feature_string().to_str()?.to_string(),
+    ))
 }
 
 #[test]
@@ -62,10 +64,15 @@ fn each_target_carries_its_pinned_triple_cpu_and_features() {
 }
 
 #[test]
-fn each_target_machine_is_built_from_its_pinned_triple_cpu_and_features() {
-    let machines = PINNED.map(|(target, ..)| machine_configuration(target));
+fn each_target_machine_is_built_from_its_pinned_triple_cpu_and_features()
+-> Result<(), Box<dyn Error>> {
+    let machines = PINNED
+        .into_iter()
+        .map(|(target, ..)| machine_configuration(target))
+        .collect::<Result<Vec<_>, _>>()?;
 
     assert_eq!(machines, PINNED.map(owned));
+    Ok(())
 }
 
 #[test]
