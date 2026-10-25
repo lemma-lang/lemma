@@ -141,7 +141,7 @@ impl Parser<'_> {
         let current = self.current();
         let range = current.range;
         let message = format!(
-            "a statement cannot begin with the name {}; a value is defined once, by `let`, a carry or `next`",
+            "a statement cannot begin with {}; a value is defined once, by `let`, a carry or `next`",
             self.found(current)
         );
         self.stop(Kind::Assignment, message, range)

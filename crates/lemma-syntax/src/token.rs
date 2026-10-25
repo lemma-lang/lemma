@@ -67,6 +67,23 @@ pub(crate) fn is_word_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
+/// Whether `character` is printable ASCII, U+0020 to U+007E.
+pub(crate) fn is_printable_ascii(character: char) -> bool {
+    matches!(character, ' '..='~')
+}
+
+/// How a diagnostic names `character` when it does not write it: `U+` and its number in at least
+/// four uppercase hexadecimal digits.
+pub(crate) fn code_point_name(character: char) -> String {
+    format!("U+{:04X}", u32::from(character))
+}
+
+/// How a diagnostic names a byte that is not UTF-8: `byte 0x` and two uppercase hexadecimal
+/// digits.
+pub(crate) fn byte_name(byte: u8) -> String {
+    format!("byte 0x{byte:02X}")
+}
+
 /// A half-open range of byte offsets in the source text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextRange {

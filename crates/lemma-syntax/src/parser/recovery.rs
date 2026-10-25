@@ -6,7 +6,7 @@ use lemma_diagnostics::Kind;
 
 use super::nesting::{Delimiter, Level, NESTING_LIMIT};
 use super::{A_NAME, Abort, Expectation, ParseResult, Parser, expectation_list, token};
-use crate::token::{Keyword, TextRange, Token, TokenKind};
+use crate::token::{Keyword, TextRange, Token, TokenKind, code_point_name, is_printable_ascii};
 
 /// What the `nesting-limit` message adds in the impl, where `let` exists.
 const IMPL_NESTING_ADVICE: &str = "; bind an inner expression to a name with `let`";
@@ -51,7 +51,8 @@ struct StopRecord {
 
 impl Parser<'_> {
     /// The token's spelling as the parser reads it, repairs applied, in backticks; `end of
-    /// input` at the end.
+    /// input` at the end. A spelling outside printable ASCII is named by its first code point
+    /// instead, without backticks, unless it is the active C1 variant's symbol.
     pub(super) fn found(&self, token: &Token) -> String {
         let spelling = match &token.kind {
             TokenKind::Eof => return "end of input".to_string(),
@@ -63,14 +64,23 @@ impl Parser<'_> {
                 .spelling()
                 .map_or_else(|| self.token_text(token.range), str::to_string),
         };
-        format!("`{spelling}`")
+        let active_symbol = token
+            .kind
+            .c1_symbol()
+            .is_some_and(|(_, spelled)| spelled == self.variant);
+        if active_symbol || spelling.chars().all(is_printable_ascii) {
+            return format!("`{spelling}`");
+        }
+        spelling
+            .chars()
+            .next()
+            .map_or_else(String::new, code_point_name)
     }
 
-    /// The code point of a one-code-point token, in backticks with its number.
+    /// The code point of a one-code-point token, named by its number.
     pub(super) fn code_point(&self, range: TextRange) -> String {
         let text = self.token_text(range);
-        let number = text.chars().next().map_or(0, u32::from);
-        format!("`{text}` (U+{number:04X})")
+        code_point_name(text.chars().next().unwrap_or_default())
     }
 
     /// Ends the function at the current token: its faults are reported, then `record` unless
@@ -158,16 +168,25 @@ impl Parser<'_> {
     }
 
     /// The `unclosed-delimiter` record for `open`, at the end of the last token read; `inserted`
-    /// is the closer its repair inserts.
+    /// is the closer its repair inserts. The message counts the other delimiters the current token
+    /// cannot occur inside: every open one before an item start or the end, else the open `(` and
+    /// `[`.
     fn unclosed(&self, open: Delimiter, inserted: Option<Delimiter>) -> StopRecord {
-        let before = self.found(self.current());
+        let current = self.current();
+        let before = self.found(current);
         let insertion = inserted.map_or_else(String::new, |closer| {
             format!("; insert `{}`", closer.close_spelling())
         });
-        let message = format!(
-            "`{}` is not closed before {before}{insertion}",
-            open.open_spelling()
-        );
+        let candidates = if ends_block(&current.kind) {
+            self.nesting.delimiter_count()
+        } else {
+            self.nesting.parentheses_and_brackets()
+        };
+        let opened = match candidates.saturating_sub(1) {
+            0 => format!("`{}` is", open.open_spelling()),
+            more => format!("`{}` and {more} more are", open.open_spelling()),
+        };
+        let message = format!("{opened} not closed before {before}{insertion}");
         let range = TextRange {
             start: self.previous_end,
             end: self.previous_end,

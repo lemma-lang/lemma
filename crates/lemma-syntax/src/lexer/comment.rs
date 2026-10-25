@@ -4,7 +4,7 @@
 use lemma_diagnostics::Kind;
 
 use super::{Decoded, decode, range};
-use crate::token::{Fault, TextRange};
+use crate::token::{Fault, TextRange, byte_name, code_point_name};
 
 /// The code points and bytes of one comment that a comment may not hold.
 pub(super) struct Rejected {
@@ -52,7 +52,7 @@ fn rejected_at(
 ) -> (usize, Vec<(TextRange, String)>) {
     match decoded {
         Decoded::Char(character, length) => {
-            let name = format!("U+{:04X}", u32::from(character));
+            let name = code_point_name(character);
             let item = (range(position, position + length), name);
             let rejected = (!is_allowed(bytes, position, character)).then_some(item);
             (length, rejected.into_iter().collect())
@@ -61,7 +61,7 @@ fn rejected_at(
             let end = (position + length).min(to);
             let rejected = (position..end).filter_map(|offset| {
                 let byte = bytes.get(offset)?;
-                Some((range(offset, offset + 1), format!("byte 0x{byte:02X}")))
+                Some((range(offset, offset + 1), byte_name(*byte)))
             });
             (length, rejected.collect())
         }

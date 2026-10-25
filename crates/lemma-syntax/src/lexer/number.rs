@@ -13,6 +13,32 @@ pub(super) struct Literal {
     pub edits: Vec<(TextRange, String)>,
 }
 
+/// Why no single repair makes a lexeme a literal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Rejection {
+    /// An integer part with a leading zero, which C would read as octal.
+    LeadingZero,
+    /// Any other malformed text, a hexadecimal literal included.
+    Malformed,
+}
+
+impl Rejection {
+    /// The `invalid-number` message for the lexeme `spelled`.
+    pub(super) fn message(self, spelled: &str) -> String {
+        match self {
+            Self::Malformed => format!("`{spelled}` is not a valid number"),
+            Self::LeadingZero => {
+                let literal = if spelled.contains(['.', 'e']) {
+                    "a float literal"
+                } else {
+                    "an integer literal"
+                };
+                format!("`{spelled}` is not a valid number: {literal} has no leading zero")
+            }
+        }
+    }
+}
+
 struct Reader<'a> {
     lexeme: &'a [u8],
     offsets: &'a [usize],
@@ -129,9 +155,9 @@ impl Reader<'_> {
 /// Reads `lexeme` as a literal; `offsets` holds the source offset of each of its bytes, then the
 /// offset of its end.
 ///
-/// `None` means no single repair makes it one: a leading zero, a hexadecimal literal, or any
+/// An error means no single repair makes it one: a leading zero, a hexadecimal literal, or any
 /// other malformed text.
-pub(super) fn classify(lexeme: &[u8], offsets: &[usize]) -> Option<Literal> {
+pub(super) fn classify(lexeme: &[u8], offsets: &[usize]) -> Result<Literal, Rejection> {
     let mut reader = Reader {
         lexeme,
         offsets,
@@ -145,7 +171,7 @@ pub(super) fn classify(lexeme: &[u8], offsets: &[usize]) -> Option<Literal> {
         reader.insert("0");
     }
     if reader.spelling.len() > 1 && reader.spelling.starts_with('0') {
-        return None;
+        return Err(Rejection::LeadingZero);
     }
     if reader.peek(0) == Some(b'.') {
         is_float = true;
@@ -157,13 +183,15 @@ pub(super) fn classify(lexeme: &[u8], offsets: &[usize]) -> Option<Literal> {
             reader.insert(".0");
         }
         if !reader.take_exponent() {
-            return None;
+            return Err(Rejection::Malformed);
         }
     }
     let complete = reader.peek(0).is_none() || reader.drop_suffix();
-    complete.then_some(Literal {
-        spelling: reader.spelling,
-        is_float,
-        edits: reader.edits,
-    })
+    complete
+        .then_some(Literal {
+            spelling: reader.spelling,
+            is_float,
+            edits: reader.edits,
+        })
+        .ok_or(Rejection::Malformed)
 }

@@ -127,6 +127,11 @@ impl Nesting {
             .find(|delimiter| *delimiter != Delimiter::Brace)
     }
 
+    /// How many delimiters of any kind are open.
+    pub(super) fn delimiter_count(&self) -> usize {
+        self.delimiters().count()
+    }
+
     /// How many `(` and `[` are open.
     pub(super) fn parentheses_and_brackets(&self) -> usize {
         self.delimiters()

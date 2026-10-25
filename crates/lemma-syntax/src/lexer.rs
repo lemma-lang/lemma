@@ -8,7 +8,7 @@ use lemma_diagnostics::Kind;
 
 use crate::token::{
     C1Symbol, C1Variant, Comment, Fault, Keyword, Lexed, ScalarClass, ScalarType, TextRange, Token,
-    TokenKind, VectorType, is_word_byte,
+    TokenKind, VectorType, byte_name, code_point_name, is_printable_ascii, is_word_byte,
 };
 
 const SIGMA: char = '\u{03A3}';
@@ -523,7 +523,11 @@ impl Lexer<'_> {
 
     fn scan_invalid_encoding(&self, start: usize) -> Scanned {
         let end = self.invalid_run_end(start);
-        let message = format!("the bytes `{}` are not UTF-8", self.text(start, end));
+        let first = self.byte(start).map_or_else(String::new, byte_name);
+        let message = match (end - start).saturating_sub(1) {
+            0 => format!("{first} is not UTF-8"),
+            more => format!("{first} and {more} more are not UTF-8"),
+        };
         Scanned::rejected(Kind::InvalidEncoding, message, end)
     }
 
@@ -542,37 +546,37 @@ impl Lexer<'_> {
                 let message = "`;` is not part of the language".to_string();
                 Scanned::rejected(Kind::Semicolon, message, start + 1)
             }
-            _ => self.scan_operator(start),
+            _ => self.scan_operator(start, character),
         }
     }
 
-    /// A block comment without a repair; it is not quoted when it holds rejected characters.
+    /// A block comment without a repair; its text is not quoted, which may span lines.
     fn scan_rejected_block_comment(&self, start: usize) -> Scanned {
         let end = self.block_comment_end(start);
-        let message = match comment::find(self.bytes, start + 2, end) {
-            Some(rejected) => rejected.note_to("`/*` is a block comment; use `//`"),
-            None => format!("`{}` is a block comment; use `//`", self.text(start, end)),
-        };
+        let base = "`/*` is a block comment; use `//`";
+        let message = comment::find(self.bytes, start + 2, end)
+            .map_or_else(|| base.to_string(), |rejected| rejected.note_to(base));
         Scanned::rejected(Kind::BlockComment, message, end)
     }
 
-    /// A `#` line without a repair; it is not quoted when it holds rejected characters.
+    /// A `#` line without a repair; its text is not quoted, which may hold a tab.
     fn scan_rejected_hash_comment(&self, start: usize) -> Scanned {
         let end = self.line_end(start);
-        let message = match comment::find(self.bytes, start + 1, end) {
-            Some(rejected) => rejected.note_to("`#` is not a comment; comments start with `//`"),
-            None => format!(
-                "`{}` is not a comment; comments start with `//`",
-                self.text(start, end)
-            ),
-        };
+        let base = "`#` is not a comment; comments start with `//`";
+        let message = comment::find(self.bytes, start + 1, end)
+            .map_or_else(|| base.to_string(), |rejected| rejected.note_to(base));
         Scanned::rejected(Kind::HashComment, message, end)
     }
 
-    fn scan_operator(&self, start: usize) -> Scanned {
+    fn scan_operator(&self, start: usize, character: char) -> Scanned {
         let rest = self.bytes.get(start..).unwrap_or_default();
         let Some((length, found)) = operator(rest) else {
-            let message = format!("`{}` begins no token", self.text(start, start + 1));
+            let named = if is_printable_ascii(character) {
+                format!("`{character}`")
+            } else {
+                code_point_name(character)
+            };
+            let message = format!("{named} begins no token");
             return Scanned::rejected(Kind::InvalidCharacter, message, start + 1);
         };
         let end = start + length;
@@ -710,14 +714,17 @@ impl Lexer<'_> {
         let end = self.number_end(start);
         let (lexeme, offsets, mut faults) = self.number_lexeme(start, end);
         let spelled = String::from_utf8_lossy(&lexeme).into_owned();
-        let Some(mut literal) = number::classify(&lexeme, &offsets) else {
-            let message = format!("`{spelled}` is not a valid number");
-            faults.push(fault(Kind::InvalidNumber, message, Vec::new()));
-            return Scanned {
-                kind: TokenKind::Error,
-                end,
-                faults,
-            };
+        let mut literal = match number::classify(&lexeme, &offsets) {
+            Ok(literal) => literal,
+            Err(rejection) => {
+                let message = rejection.message(&spelled);
+                faults.push(fault(Kind::InvalidNumber, message, Vec::new()));
+                return Scanned {
+                    kind: TokenKind::Error,
+                    end,
+                    faults,
+                };
+            }
         };
         let kind = if literal.is_float {
             TokenKind::Float(literal.spelling.clone())
@@ -752,7 +759,10 @@ impl Lexer<'_> {
             FOR_ALL => Scanned::plain(TokenKind::Forall(C1Variant::Unicode), end),
             ALMOST_EQUAL => Scanned::plain(TokenKind::AlmostEqual, end),
             ELLIPSIS => {
-                let message = "`\u{2026}` is not a range; write `lo..<hi`".to_string();
+                let message = format!(
+                    "{} is not a range; write `lo..<hi`",
+                    code_point_name(ELLIPSIS)
+                );
                 Scanned::rejected(Kind::RangeOperator, message, end)
             }
             SMALL_ELEMENT_OF => self.scan_c1_lookalike(start, character, length, C1Symbol::In),
@@ -765,8 +775,8 @@ impl Lexer<'_> {
             }
             lookalike if UNREPAIRED_LOOKALIKES.contains(&lookalike) => {
                 let message = format!(
-                    "`{character}` (U+{:04X}) is another symbol, not in the language",
-                    u32::from(character)
+                    "{} is another symbol, not in the language",
+                    code_point_name(character)
                 );
                 Scanned::rejected(Kind::Lookalike, message, end)
             }
@@ -784,10 +794,7 @@ impl Lexer<'_> {
         let end = start + length;
         let spelling = symbol.spelling(self.variant);
         let replacement = symbol.replacement(self.variant, self.bytes, range(start, end));
-        let message = format!(
-            "`{character}` (U+{:04X}) looks like `{spelling}`",
-            u32::from(character)
-        );
+        let message = format!("{} looks like `{spelling}`", code_point_name(character));
         Scanned {
             kind: symbol.token(self.variant),
             end,
@@ -805,16 +812,10 @@ impl Lexer<'_> {
             .iter()
             .find(|(lookalike, _, _)| *lookalike == character);
         let Some((_, kind, spelling)) = found else {
-            let message = format!(
-                "`{character}` (U+{:04X}) is not ASCII",
-                u32::from(character)
-            );
+            let message = format!("{} is not ASCII", code_point_name(character));
             return Scanned::rejected(Kind::NonAscii, message, end);
         };
-        let message = format!(
-            "`{character}` (U+{:04X}) looks like `{spelling}`",
-            u32::from(character)
-        );
+        let message = format!("{} looks like `{spelling}`", code_point_name(character));
         let edit = (range(start, end), (*spelling).to_string());
         Scanned {
             kind: kind.clone(),
@@ -831,8 +832,8 @@ fn space_fault(character: char, start: usize, length: usize, replacement: &str) 
         "use a space"
     };
     let message = format!(
-        "U+{:04X} is a lookalike of whitespace; {wanted}",
-        u32::from(character)
+        "{} is a lookalike of whitespace; {wanted}",
+        code_point_name(character)
     );
     let edit = (range(start, start + length), replacement.to_string());
     fault(Kind::Lookalike, message, vec![edit])
