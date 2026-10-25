@@ -20,6 +20,8 @@ reasons live in [docs/adr/](docs/adr/): read them before changing anything they 
 | `crates/lemma-cli` | `lemma` binary |
 | `examples/` | Lemma source examples (`.lm`) |
 | `docs/` | Design notes and ADRs |
+| `.agents/skills/` | Task skills for agents (see [Skills](#skills)) |
+| `tools/rules/` | Shape rules for Rust code, checked on changed lines |
 
 ## Commands
 
@@ -27,12 +29,14 @@ The [`justfile`](justfile) is the single source of truth for commands; run `just
 
 ```
 just check                   # everything CI runs: fmt, lint, test, doc, deny, spell, rules
+tools/rules/check.sh HEAD    # shape rules on the lines changed since HEAD
 just fmt                     # format Rust and TOML
 just test                    # cargo nextest + doc-tests
 cog verify "<message>"       # check a commit message
 ```
 
-`just check` must pass before a change is considered done. CI calls the same recipes.
+`just check` must pass before a change is considered done. CI calls the same recipes. Before
+pushing, follow [lemma-checks](.agents/skills/lemma-checks/SKILL.md).
 
 ## Rules
 
@@ -53,7 +57,8 @@ All repository content is in English: code, comments, docs, commit messages.
 - Examples in doc comments are doc-tests: they run with `cargo test`, so they cannot rot.
 - A change that alters behavior described in `README.md`, `docs/design.md` or this file updates
   that file in the same commit.
-- A change that reverses or extends an architecture decision adds or supersedes an ADR.
+- A change that reverses or extends an architecture decision adds or supersedes an ADR
+  ([lemma-language-design](.agents/skills/lemma-language-design/SKILL.md)).
 
 ### Code style
 
@@ -65,7 +70,7 @@ Write code an agent can read in one pass:
   `#[cfg(test)] mod tests;`, which resolves to `tests.rs` in the module's directory
   (`src/tests.rs` for `lib.rs` and `main.rs`, `src/parser/tests.rs` for `src/parser.rs`).
   Integration tests go in `crates/*/tests/`, snapshot and golden files in `snapshots/` or
-  `testdata/` directories.
+  `testdata/` directories ([lemma-testing](.agents/skills/lemma-testing/SKILL.md)).
 - Prefer simple, direct code over layers of abstraction. Do not split a function only to make it shorter.
 - Errors are structured values carrying a location and, for proofs, the Z3 counterexample.
   No `unwrap()` or `expect()` outside tests (`clippy::unwrap_used` and `clippy::expect_used` are
@@ -79,10 +84,20 @@ macOS needs `brew install llvm@22 z3`; paths are set in `.cargo/config.toml`.
 CI runs on GitHub Actions (see `.github/workflows/ci.yml`): Linux in a Debian trixie container
 with LLVM 22 from apt.llvm.org, and macOS on Apple Silicon.
 
-## Agent orchestration
+## Skills
 
-Claude Code runs a chain of specialized subagents on this repository (ticket, plan, tests,
-implementation, review, proofs, performance, pull request), defined in `.claude/agents/` and
-held to their zones by the hooks in `.claude/hooks/`. The policy, the roles and the exit gate
-before every commit are described in [.claude/orchestration.md](.claude/orchestration.md),
-which `CLAUDE.md` imports. GitHub issue `#n` is ticket `LEM-n`.
+Task knowledge lives in [`.agents/skills/`](.agents/skills/), one `SKILL.md` per task, in the
+open Agent Skills format; Claude Code finds them through the links in `.claude/skills/`. Load the
+one that matches the task before starting it:
+
+| Skill | Use when |
+|---|---|
+| [lemma-checks](.agents/skills/lemma-checks/SKILL.md) | before committing, pushing or claiming checks pass |
+| [lemma-testing](.agents/skills/lemma-testing/SKILL.md) | writing, placing or reviewing tests |
+| [lemma-specs-and-proofs](.agents/skills/lemma-specs-and-proofs/SKILL.md) | writing a contract in a `.lm` file, changing `lemma-verify`, a proof slow, flaky or unknown |
+| [lemma-code-review](.agents/skills/lemma-code-review/SKILL.md) | reviewing a pull request or a branch |
+| [lemma-language-design](.agents/skills/lemma-language-design/SKILL.md) | changing the language, an ADR, or described behavior |
+| [lemma-perf](.agents/skills/lemma-perf/SKILL.md) | measuring, benchmarking, changing `lemma-codegen` or `lemma-jit` |
+
+A skill applies this file's rules to one task; when the two disagree, this file wins and the
+skill is fixed.

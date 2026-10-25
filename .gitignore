@@ -3,8 +3,20 @@
 *.ll
 .DS_Store
 
-# Agent orchestration: working memory, local to each clone, never committed.
+# Agent orchestration of the maintainer's Claude Code setup: local to each clone,
+# never committed. What is shared with contributors is AGENTS.md, the skills in
+# .agents/skills/ and the shape rules in tools/rules/.
 # No trailing slash: in a worktree these are symbolic links, not directories.
+/CLAUDE.local.md
+/.claude/agents
+/.claude/hooks
+/.claude/tools
+/.claude/orchestration.md
+/.claude/project.conf
+/.claude/test-paths.txt
+/.claude/settings.json
+/.claude/settings.local.json
+/.claude/skills/goal
 /.claude/plans
 /.claude/state
 /.claude/reviews
@@ -13,6 +25,5 @@
 /.claude/proofs
 /.claude/perf
 /.claude/tmp
-/.claude/settings.local.json
 *.snap.new
 *.pending-snap
