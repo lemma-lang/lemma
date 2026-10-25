@@ -103,6 +103,14 @@ It amends ADR 0006, P6, by one sentence (below). The rules are written in
    line end belongs to the line end, not to the comment. Since the formatter formats only text with
    no syntax diagnostic, these are all the rules it needs for comments (`docs/grammar.md`, section
    5).
+8. **Every diagnostic message holds printable ASCII, for the reason comments do**: the text fields
+   of a record that the producer writes (the message, a related span's label, an obligation and the
+   clauses it assumes, a counterexample's names and values) name a code point outside U+0020 to
+   U+007E as `U+` and hexadecimal digits and a byte that is not UTF-8 as `byte 0x` and two
+   hexadecimal digits, never as themselves, except the active C1 variant's symbols, which are
+   source text under that variant; the message is the text P5 makes the writer's main input, so
+   it passes on no hidden, control or lookalike text either, and this extends ADR 0009, whose
+   records allowed any Unicode text (`docs/diagnostics.md`, sections 1 and 7).
 
 The principles of ADR 0006 this rests on:
 
@@ -158,8 +166,9 @@ The principles of ADR 0006 this rests on:
   does not format.
 - **For the verifier, codegen and the JIT**: nothing. Comments reach none of them, add no
   obligation and justify no LLVM fact.
-- **For `docs/diagnostics.md`**: the tie rule of decision 6 in section 3, and the fixed message
-  shape of `comment-character` in section 7.
+- **For `docs/diagnostics.md`**: the tie rule of decision 6 in section 3, the printable ASCII rule
+  of decision 8 in section 1, and the fixed message shapes in section 7 of `comment-character` and
+  of every kind whose message names a code point or a byte.
 - **For the experiment**: both kinds are syntax-class failures, counted by P1's metric. The
   restriction remains open to injected instructions written in plain, visible ASCII; it makes them
   visible to an audit, and the spec reviewer never sees comments (P8), but whether a model that

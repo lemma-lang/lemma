@@ -203,9 +203,23 @@ caught where it is written: `;`, `::`, `..`, `...`, `..=`, `++`, `--`, `+=`, `-=
 
 The quantifier is not one of ADR 0006's two C1 symbols; it follows C1's outcome (ADR 0008), so one
 switch selects all three. `SUM`, `IN` and `FORALL` below stand for the active variant's spelling.
-The inactive variant's spelling is rejected with `c1-other-variant`, whose repair is the active
-spelling. Non-ASCII text appears only under variant U, as these three code points: comments are
-printable ASCII (above), and a file under variant A is ASCII.
+Non-ASCII text appears only under variant U, as these three code points: comments are printable
+ASCII (above), and a file under variant A is ASCII.
+
+The inactive variant's spelling is rejected, and how depends on where the parser stands, never on
+the parser telling the lexer anything (P7):
+
+- **Where the parser expects the C1 token it denotes**, it is `c1-other-variant`, whose repair is
+  the active spelling: `SUM` or `FORALL` where a primary expression can begin, `IN` after the binder
+  of a loop, a sum or a quantifier. Recovery reads it as the active token.
+- **Elsewhere** it is the reserved word it denotes, as the active spelling would be: `reserved-word`
+  where a name is expected (`let Σ: u64` under variant A, `let sum: u64` under either), and
+  `unexpected-token` anywhere else (`return a Σ b`).
+
+Where a primary expression can begin a name is also expected, and `c1-other-variant` takes
+precedence there: `return Σ(i: u64 in 0..<n) { a[i] }` under variant A is `c1-other-variant`.
+Diagnostic messages name `Σ`, `∈` and `∀` by number under variant A (`U+03A3`) and as themselves
+under variant U ([`docs/diagnostics.md`](diagnostics.md), section 1).
 
 ### Lookalikes
 
@@ -236,8 +250,10 @@ table is a `comment-character`. "Active" means the active variant's spelling. A 
 | U+00A0, U+2007, U+2009, U+202F | no-break, figure, thin, narrow no-break space | U+0020 |
 | U+200B, U+FEFF | ZERO WIDTH SPACE, ZERO WIDTH NO-BREAK SPACE | delete |
 
-Under variant A, `Σ`, `∈` and `∀` themselves are `c1-other-variant`, and the sum,
-membership and quantifier lookalikes above are repaired to `sum`, `in` and `forall`.
+Under variant A, `Σ`, `∈` and `∀` themselves are the inactive variant's spelling, rejected as
+"The C1 symbols" above states (`c1-other-variant` where the parser expects the C1 token, the
+reserved word they denote elsewhere), and the sum, membership and quantifier lookalikes above are
+repaired to `sum`, `in` and `forall`.
 
 ## 3. Syntax
 
@@ -611,7 +627,7 @@ A comment yields at most one record, whose repair fixes everything the comment b
 | `invalid-character` | outside a comment, an ASCII character that begins no token (`$`, `` ` ``, `'`, `"`, `?`, `\`, a control character), `@` not followed by `a` and digits | none |
 | `non-ascii` | a non-ASCII code point outside a comment that is neither an active C1 symbol nor a lookalike repaired at that position | none |
 | `lookalike` | a code point of the lookalike table | per the table |
-| `c1-other-variant` | the inactive C1 variant's spelling: `Σ`, `∈` or `∀` under A, `sum`, `in` or `forall` under U | the active spelling |
+| `c1-other-variant` | the inactive C1 variant's spelling (`Σ`, `∈` or `∀` under A, `sum`, `in` or `forall` under U) where the parser expects the C1 token it denotes: `SUM` or `FORALL` where a primary expression can begin, `IN` after a binder (section 2, "The C1 symbols"); elsewhere it is `reserved-word` or `unexpected-token` | the active spelling |
 | `comment-character` | in a comment, a code point other than U+0020 to U+007E and tab, or a byte that is not UTF-8; one record per comment, spanning the first (section 2) | delete each maximal run of them |
 | `misplaced-comment` | a comment that does not stand on its own line before an item, a clause or a statement (section 2) | move it to its own line before the innermost item, clause or statement containing the token before it (section 2); none in a file with no item |
 | `semicolon` | `;` | when it is the first token of its line, replace it, and any `;` directly after it, by `//`; otherwise delete it when the rest of its line is empty or begins with `}` or a keyword; otherwise none |
@@ -619,13 +635,13 @@ A comment yields at most one record, whose repair fixes everything the comment b
 | `hash-comment` | `#` | `//`, when `#` is the first character of its line and is not followed by `[`; otherwise none |
 | `invalid-number` | a malformed literal | `.5` → `0.5`; `5.` → `5.0`; `1e5` → `1.0e5`; `e+5` → `e5`; `1_000` → `1000`; a type suffix (`0.0f`, `16u64`, `1.0_f32`) deleted; none for a leading zero (`007`, octal in C) or a hexadecimal literal |
 | `invalid-identifier` | an uppercase letter or a leading `_` in a word | none |
-| `reserved-word` | a keyword or reserved type name where a name is expected | none |
+| `reserved-word` | a keyword, a reserved type name, or a C1 spelling of either variant, where a name is expected and, for a C1 spelling, its C1 token is not (section 2, "The C1 symbols") | none |
 | `unsupported-operator` | `++`, `--`, `**`, a compound assignment (`+=` …), `&` as a binary operator, `\|`, `^`, `~`, `<<`, `>>` | none |
 | `assignment-in-expression` | `=` inside an expression (`req n % 16 = 0`) | `==` |
 | `path-separator` | `::` | `.` |
 | `range-operator` | `..`, `...`, `..=`, `…`: inclusive in some languages, exclusive in others | none: the range is `lo..<hi`, and the writer must say which bound was meant |
 | `unexpected-token` | any other token the grammar does not allow there; the message lists the expected tokens ([`docs/diagnostics.md`](diagnostics.md), section 7) | none |
-| `unclosed-delimiter` | a `(` or `[` still open at a token that cannot occur inside it (a clause or statement keyword, `fn`, `export`, end of input); a `{` still open at `fn`, `export` or end of input | `)` or `]` inserted before that token, when exactly one delimiter is open; none for `{` |
+| `unclosed-delimiter` | a `(` or `[` still open at a token that cannot occur inside it (a clause or statement keyword, `fn`, `export`, end of input); a `{` still open at `fn`, `export` or end of input | `)` or `]` inserted before that token, when the delimiter it closes is the innermost open `(` or `[` and the only one (open `{` not counted); none when another `(` or `[` is open, and none for `{` |
 | `unmatched-delimiter` | a closing delimiter with no opener, or the wrong closer | none |
 | `trailing-comma` | a comma that ends a list: before `)`, or after the last effect of an `eff` list | delete it |
 | `foreign-keyword` | another language's word where a Lemma keyword is expected | `ret` → `return`; `function`, `func`, `fun`, `def` → `fn`; `requires` → `req`; `ensures` → `ens`; `effects` → `eff`; `var`, `val`, `const` before `name:` → `let`; none for `mut`, `pub`, `extern`, `for`, `while`, `if`, `else`, `match`, `break`, `continue` |

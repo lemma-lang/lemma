@@ -45,6 +45,20 @@ Strings are Unicode text. `message`, `label`, `about`, each `assumes` clause, `n
 contain no line break; a producer that breaks this rule is at fault, and the T rendering escapes
 the break rather than breaking its layout (section 6). A `replacement` may contain line breaks.
 
+**Printable ASCII.** The same six fields hold printable ASCII only, U+0020 to U+007E. A code point
+outside that range is never written as itself: it is named `U+` and its number in at least four
+uppercase hexadecimal digits (`U+00E9`, `U+202E`, `U+E0041`), without backticks, and a byte that is
+not UTF-8 is named `byte 0x` and two uppercase hexadecimal digits (`byte 0xFF`). The one exception
+is the active C1 variant's symbols, `Σ`, `∈` and `∀` under variant U (`docs/grammar.md`, section
+2): they are source text under that variant, so a field quotes them as written and names them as
+spellings to use (``write `Σ` ``). Under variant A they are named like any other code point
+(`U+03A3`). The models that read a record see no hidden, control or lookalike text through it,
+for the reason ADR 0011 rejects such text in comments; and the message is the channel P5 makes the
+writer's main input. A producer that breaks this rule is at fault. The parser of the R rendering
+does not check it, since the exception depends on the variant, which a record does not carry. The
+rule does not apply to `file`, the name the compiler was given, nor to `replacement`, which is
+source text: printable ASCII, tab, line breaks and the active variant's symbols.
+
 ### Fields by class
 
 | Class | `obligation` | `counterexample` | `repair` |
@@ -323,19 +337,55 @@ decided there.
 
 ### Messages with a fixed shape
 
-- `unexpected-token`: `unexpected <found>, expected <list>`, where `<found>` is the token's spelling
-  in backticks, or `end of input`; the list gives the spelled tokens in backticks, in byte order of
-  their spelling, then the token classes in words (`a name`, `an integer literal`, `a type`) in
-  alphabetical order, joined as `x`, `x or y`, `x, y or z`. For example: ``unexpected `]`, expected
-  `)` or `,` ``.
+Every message holds printable ASCII and names any other code point or byte as section 1 states.
+In the shapes below, `<found>` is the token where the diagnostic stands: its spelling in backticks;
+a code point outside printable ASCII, other than an active C1 symbol, named as in section 1 without
+backticks (`U+03A3` under variant A); or `end of input`. `<code point>` is the code point the
+diagnostic is about, named as in section 1.
+
+- `unexpected-token`: `unexpected <found>, expected <list>`; the list gives the spelled tokens in
+  backticks, in byte order of their spelling, then the token classes in words (`a name`, `an integer
+  literal`, `a type`) in alphabetical order, joined as `x`, `x or y`, `x, y or z`. For example:
+  ``unexpected `]`, expected `)` or `,` ``.
 - `comment-character`: `a comment holds printable ASCII and tab only; found <first>`, followed by
   ` and <k> more` when the comment holds `k` other rejected code points or bytes, at least one.
-  `<first>` is the first of them: a code point as `U+` and its number in at least four uppercase
-  hexadecimal digits (`U+202E`, `U+E0041`), a byte that is not UTF-8 as `byte 0x` and two uppercase
-  hexadecimal digits (`byte 0xFF`). For example:
-  `a comment holds printable ASCII and tab only; found U+202E and 3 more`. No message about a
-  comment contains a code point the comment rules reject, so a record does not pass hidden text on
-  to the model that reads it (ADR 0011).
+  `<first>` is the first of them, named as in section 1 (`U+202E`, `U+E0041`, `byte 0xFF`). For
+  example: `a comment holds printable ASCII and tab only; found U+202E and 3 more`.
+- `invalid-encoding`: `byte 0x<hh> is not UTF-8`, naming the first byte of the span's run of bytes
+  that are not UTF-8; when the run holds `k` other bytes, at least one,
+  `byte 0x<hh> and <k> more are not UTF-8`. For example: `byte 0xFF is not UTF-8`,
+  `byte 0xC3 and 2 more are not UTF-8`.
+- `non-ascii`: `<code point> is not ASCII`. For example: `U+00E9 is not ASCII`.
+- `lookalike`, with a repair: ``<code point> looks like `<repair>` ``, the repair being the active
+  spelling for a C1 lookalike. For example: ``U+2265 looks like `>=` ``, and
+  ``U+2211 looks like `sum` `` under variant A, ``U+2211 looks like `Σ` `` under variant U. For a
+  whitespace lookalike, `<code point> is a lookalike of whitespace; use a space`, or `; delete it`
+  when the repair deletes it (`U+200B`, `U+FEFF`).
+- `lookalike`, without a repair: `<code point> is another symbol, not in the language`
+  (`U+2203 is another symbol, not in the language`); `U+2248` outside `equiv`,
+  `U+2248 is not an operator of the language`.
+- `range-operator` on `…`: ``U+2026 is not a range; write `lo..<hi` ``.
+- `c1-other-variant`: ``<found> is the other C1 variant's spelling; write `<active>` ``. For
+  example: ``U+03A3 is the other C1 variant's spelling; write `sum` `` under variant A, and
+  `` `sum` is the other C1 variant's spelling; write `Σ` `` under variant U.
+- `reserved-word`: `<found> is reserved and cannot be used as a name`. For example:
+  `` `loop` is reserved and cannot be used as a name ``, and, for `let Σ: u64` under variant A,
+  `U+03A3 is reserved and cannot be used as a name`.
+- `invalid-number`, for a leading zero:
+  `` `<spelling>` is not a valid number: an integer literal has no leading zero ``, with
+  `a float literal` in place of `an integer literal` when the spelling holds a `.` or an `e`. For
+  example: `` `007` is not a valid number: an integer literal has no leading zero ``.
+- `unclosed-delimiter`: `` `<open>` is not closed before <found> ``, where `<open>` is the
+  innermost delimiter the token cannot occur inside; when `k` other such delimiters are open, at
+  least one, `` `<open>` and <k> more are not closed before <found> ``. At a clause or statement
+  keyword those are the open `(` and `[`; at `fn`, `export` or end of input, every open delimiter,
+  `{` included. When the record carries the repair, the message ends with ``; insert `<closer>` ``.
+  For example: `` `(` is not closed before `spec`; insert `)` `` and
+  `` `(` and 1 more are not closed before `spec` ``.
+- `assignment`: ``a statement cannot begin with <found>; a value is defined once, by `let`, a
+  carry or `next` ``. The word found is a name to Lemma and often a keyword to the writer, so the
+  message calls it neither. For example:
+  ``a statement cannot begin with `var`; a value is defined once, by `let`, a carry or `next` ``.
 - `nesting-limit`: in the impl,
   ``nesting exceeds the limit of 16 levels; bind an inner expression to a name with `let` ``; in
   the signature or a contract clause, which have no `let`,
