@@ -88,22 +88,40 @@ impl Reader<'_> {
         self.take_digits() > 0
     }
 
-    /// Drops a type suffix such as `f`, `u64` or `_f32`.
+    /// Drops a type suffix such as `f`, `d`, `u64` or `_f32`; a suffix that follows a bare `.`
+    /// replaces it together with the `0` the fraction lacks, as one edit.
     fn drop_suffix(&mut self) -> bool {
         let rest = self.lexeme.get(self.index..).unwrap_or_default();
-        let word = rest.strip_prefix(b"_").unwrap_or(rest);
-        let starts_like_a_type =
-            matches!(word.first(), Some(b'a'..=b'z')) && word.first() != Some(&b'x');
-        let is_word = word
-            .iter()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit());
-        if !starts_like_a_type || !is_word {
+        if !is_type_suffix(rest) {
             return false;
         }
-        self.edit(self.index, self.lexeme.len(), "");
+        let suffix_start = self.offset(self.index);
+        let follows_bare_dot = self.index > 0 && self.lexeme.get(self.index - 1) == Some(&b'.');
+        let missing_fraction = follows_bare_dot
+            && self
+                .edits
+                .pop_if(|(range, _)| range.start == suffix_start && range.end == suffix_start)
+                .is_some();
+        if missing_fraction {
+            self.edit(self.index - 1, self.lexeme.len(), ".0");
+        } else {
+            self.edit(self.index, self.lexeme.len(), "");
+        }
         self.index = self.lexeme.len();
         true
     }
+}
+
+/// Whether `word` spells a type suffix: `f`, `d` or a scalar type name, after an optional `_`.
+fn is_type_suffix(word: &[u8]) -> bool {
+    let word = word.strip_prefix(b"_").unwrap_or(word);
+    if matches!(word, b"f" | b"d") {
+        return true;
+    }
+    std::str::from_utf8(word)
+        .ok()
+        .and_then(super::scalar_type)
+        .is_some()
 }
 
 /// Reads `lexeme` as a literal; `offsets` holds the source offset of each of its bytes, then the

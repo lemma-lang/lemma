@@ -85,6 +85,21 @@ pub(super) fn text_without(
     String::from_utf8_lossy(&kept).into_owned()
 }
 
+/// The edits with each one that starts where the previous ends joined to it.
+fn join_adjacent(edits: impl Iterator<Item = (TextRange, String)>) -> Vec<(TextRange, String)> {
+    let mut joined: Vec<(TextRange, String)> = Vec::new();
+    for (edit_range, replacement) in edits {
+        match joined.last_mut() {
+            Some((last, text)) if last.end == edit_range.start => {
+                last.end = edit_range.end;
+                text.push_str(&replacement);
+            }
+            _ => joined.push((edit_range, replacement)),
+        }
+    }
+    joined
+}
+
 impl Rejected {
     fn from_items(items: &[(TextRange, String)]) -> Option<Self> {
         let (first, first_name) = items.first()?.clone();
@@ -148,7 +163,8 @@ impl Rejected {
             return marker;
         };
         marker.span = Some(marker_span);
-        marker.repair.extend(self.deletions());
+        let edits = std::mem::take(&mut marker.repair);
+        marker.repair = join_adjacent(edits.into_iter().chain(self.deletions()));
         marker
     }
 }
