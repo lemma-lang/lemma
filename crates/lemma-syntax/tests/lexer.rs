@@ -1055,18 +1055,35 @@ fn trivia_faults_attach_to_the_next_token() {
 }
 
 #[test]
-fn a_zero_width_space_inside_a_word_lexes_as_one_word() {
-    let text = "ab\u{200B}cd";
+fn a_zero_width_space_inside_a_word_or_a_number_continues_the_token() {
+    let cases: Vec<StreamCase> = vec![
+        (
+            "ab\u{200B}cd",
+            ASCII,
+            vec![
+                faulted(name("abcd"), 0, 7, Kind::Lookalike, vec![edit(2, 5, "")]),
+                eof(7),
+            ],
+        ),
+        (
+            "1\u{200B}2",
+            ASCII,
+            vec![
+                faulted(
+                    TokenKind::Int("12".to_string()),
+                    0,
+                    5,
+                    Kind::Lookalike,
+                    vec![edit(1, 4, "")],
+                ),
+                eof(5),
+            ],
+        ),
+    ];
 
-    let tokens = view_of(text, ASCII);
+    let mismatches = mismatched_streams(cases);
 
-    assert_eq!(
-        tokens,
-        vec![
-            faulted(name("abcd"), 0, 7, Kind::Lookalike, vec![edit(2, 5, "")]),
-            eof(7),
-        ]
-    );
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
 }
 
 #[test]

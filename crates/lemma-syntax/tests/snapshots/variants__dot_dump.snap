@@ -1,0 +1,24 @@
+---
+source: crates/lemma-syntax/tests/variants.rs
+expression: dump
+---
+export fn dot
+  param n u64
+  param a (ref f32 n @a128 ro)
+  param b (ref f32 n @a128 ro)
+  result f32
+  eff pure
+  req (== (% n 16) 0)
+  spec (sum i u64 0 n (* (index a i) (index b i)))
+  equiv fp_reassoc fp_contract
+  impl
+    loop i u64 0 n step 16
+      carry c0 f32x4 (member f32x4 splat 0.0)
+      carry c1 f32x4 (member f32x4 splat 0.0)
+      carry c2 f32x4 (member f32x4 splat 0.0)
+      carry c3 f32x4 (member f32x4 splat 0.0)
+      next c0 (call fma (member f32x4 load a i) (member f32x4 load b i) c0)
+      next c1 (call fma (member f32x4 load a (+ i 4)) (member f32x4 load b (+ i 4)) c1)
+      next c2 (call fma (member f32x4 load a (+ i 8)) (member f32x4 load b (+ i 8)) c2)
+      next c3 (call fma (member f32x4 load a (+ i 12)) (member f32x4 load b (+ i 12)) c3)
+    return (call reduce_sum (+ (paren (+ c0 c1)) (paren (+ c2 c3))))
