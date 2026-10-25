@@ -1,0 +1,2 @@
+fn f(in: u64) -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+fn k(n: u64) -> u64 eff pure spec n equiv allow() impl { let sum: u64 = n return n }

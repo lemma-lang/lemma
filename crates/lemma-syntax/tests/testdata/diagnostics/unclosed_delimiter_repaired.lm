@@ -1,0 +1,10 @@
+fn f(n: u64, a: &u64[n] @a8 ro) -> u64
+  eff pure
+  req g(n
+  req a[n
+  spec n
+  equiv allow()
+  impl {
+    let m: u64 = g(n
+    return m
+  }

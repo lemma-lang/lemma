@@ -1,0 +1,6 @@
+fn a() -> u64 eff pure spec $ equiv allow() impl { return 0 }
+fn b() -> u64 eff pure spec é equiv allow() impl { return 0 }
+fn C() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+fn d() -> u64 eff pure spec 0..1 equiv allow() impl { return 0 }
+fn e() -> u64 eff pure spec 007 equiv allow() impl { return 0 }
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

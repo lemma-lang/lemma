@@ -1,0 +1,2 @@
+fn f() -> u64 eff pure spec 0 equiv allow() impl { return ÿ }
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

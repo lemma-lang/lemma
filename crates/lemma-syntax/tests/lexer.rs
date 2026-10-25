@@ -11,6 +11,9 @@ type StreamCase = (&'static str, C1Variant, Vec<TokenView>);
 type StreamMismatch = (&'static str, C1Variant, Vec<TokenView>, Vec<TokenView>);
 type CommentView = (TextRange, String);
 type KindAndRange = (TokenKind, TextRange);
+type DetailedFault = (Kind, Option<TextRange>, String, Vec<Edit>);
+type DetailedToken = (TokenKind, TextRange, Vec<DetailedFault>);
+type DetailedMismatch = (&'static [u8], Vec<DetailedToken>, Vec<DetailedToken>);
 
 const ASCII: C1Variant = C1Variant::Ascii;
 const UNICODE: C1Variant = C1Variant::Unicode;
@@ -93,6 +96,17 @@ const SUM_LOOKALIKES: [&str; 8] = [
     "\u{1D7A2}",
 ];
 
+const COMMENT_CHARACTER_MESSAGE: &str = "a comment holds printable ASCII and tab only; found ";
+
+const COMMENT_FAULT_TEXTS: [&str; 6] = [
+    "# abc\u{E9}\nfn",
+    "; abc\u{E9}\nfn",
+    "/* abc\u{E9} */\nfn",
+    "a # abc\u{E9}\nb",
+    "a /* \u{202E} */ b",
+    "// \u{E0041}\u{202E}\nfn",
+];
+
 const MEMBERSHIP_LOOKALIKE: &str = "\u{220A}";
 const QUANTIFIER_LOOKALIKE: &str = "\u{2C6F}";
 
@@ -110,7 +124,7 @@ const OPERATOR_LOOKALIKES: [(&str, &str); 11] = [
     ("\u{00AC}", "!"),
 ];
 
-const UNREPAIRED_SPELLINGS: [(&str, Kind); 38] = [
+const UNREPAIRED_SPELLINGS: [(&str, Kind); 39] = [
     ("..", Kind::RangeOperator),
     ("...", Kind::RangeOperator),
     ("..=", Kind::RangeOperator),
@@ -149,6 +163,7 @@ const UNREPAIRED_SPELLINGS: [(&str, Kind); 38] = [
     ("aB", Kind::InvalidIdentifier),
     ("007", Kind::InvalidNumber),
     ("0x1F", Kind::InvalidNumber),
+    ("0.while", Kind::InvalidNumber),
 ];
 
 fn at(start: usize, end: usize) -> TextRange {
@@ -358,6 +373,20 @@ fn invalid_number_cases() -> Vec<StreamCase> {
             Kind::InvalidNumber,
             vec![edit(3, 7, "")],
         ),
+        repaired(
+            "1.f",
+            ASCII,
+            "1.0",
+            Kind::InvalidNumber,
+            vec![edit(1, 3, ".0")],
+        ),
+        repaired(
+            "2.u64",
+            ASCII,
+            "2.0",
+            Kind::InvalidNumber,
+            vec![edit(1, 5, ".0")],
+        ),
     ]
 }
 
@@ -387,6 +416,68 @@ fn unrepaired_spelling_cases() -> Vec<StreamCase> {
                     vec![unrepaired(0, text.len(), fault), eof(text.len())],
                 )
             })
+        })
+        .collect()
+}
+
+fn detailed_view(text: &[u8]) -> Vec<DetailedToken> {
+    lex(text, ASCII)
+        .tokens
+        .into_iter()
+        .map(|token| {
+            let faults = token
+                .faults
+                .into_iter()
+                .map(|fault| (fault.kind, fault.span, fault.message, fault.repair))
+                .collect();
+            (token.kind, token.range, faults)
+        })
+        .collect()
+}
+
+fn detailed_mismatches(cases: Vec<(&'static [u8], Vec<DetailedToken>)>) -> Vec<DetailedMismatch> {
+    cases
+        .into_iter()
+        .map(|(text, expected)| (text, detailed_view(text), expected))
+        .filter(|(_, actual, expected)| actual != expected)
+        .collect()
+}
+
+/// The one `comment-character` fault of a comment: reported on `start..end`, naming `found`,
+/// deleting each of `runs`.
+fn comment_fault(start: usize, end: usize, found: &str, runs: &[(usize, usize)]) -> DetailedFault {
+    let edits = runs
+        .iter()
+        .map(|&(run_start, run_end)| edit(run_start, run_end, ""))
+        .collect();
+    let message = format!("{COMMENT_CHARACTER_MESSAGE}{found}");
+    (Kind::CommentCharacter, Some(at(start, end)), message, edits)
+}
+
+/// A comment line whose fault attaches to the `fn` at `fn_start`, then the end of input.
+fn before_fn(fn_start: usize, fault: DetailedFault) -> Vec<DetailedToken> {
+    let fn_end = fn_start + 2;
+    vec![
+        (kind_of("fn", ASCII), at(fn_start, fn_end), vec![fault]),
+        (TokenKind::Eof, at(fn_end, fn_end), Vec::new()),
+    ]
+}
+
+/// The messages of the faults of `texts` that hold a code point outside printable ASCII.
+fn messages_with_rejected_code_points(texts: &[&'static str]) -> Vec<(&'static str, String)> {
+    texts
+        .iter()
+        .flat_map(|&text| {
+            lex(text.as_bytes(), ASCII)
+                .tokens
+                .into_iter()
+                .flat_map(|token| token.faults)
+                .map(move |fault| (text, fault.message))
+        })
+        .filter(|(_, message)| {
+            !message
+                .chars()
+                .all(|character| matches!(character, ' '..='~'))
         })
         .collect()
 }
@@ -928,8 +1019,10 @@ fn whitespace_and_comments_separate_tokens_without_faults() {
 
 #[test]
 fn comments_are_collected_with_their_ranges() {
-    let cases: [(&str, Vec<CommentView>); 6] = [
+    let cases: [(&str, Vec<CommentView>); 8] = [
         ("a // note\nb", vec![(at(2, 9), "// note".to_string())]),
+        ("// crlf\r\nfn", vec![(at(0, 7), "// crlf".to_string())]),
+        ("// a\rb\nfn", vec![(at(0, 6), "// ab".to_string())]),
         ("/// doc\nfn", vec![(at(0, 7), "/// doc".to_string())]),
         (
             "// one\n// two",
@@ -1286,4 +1379,205 @@ fn hash_comment_repairs_depend_on_their_line() {
     let mismatches = mismatched_streams(cases);
 
     assert!(mismatches.is_empty(), "{mismatches:#?}");
+}
+
+#[test]
+fn each_code_point_a_comment_may_not_hold_is_one_comment_character_fault_on_the_next_token() {
+    let cases: Vec<(&'static [u8], Vec<DetailedToken>)> = vec![
+        (
+            b"// abc\xc3\xa9\nfn",
+            before_fn(9, comment_fault(6, 8, "U+00E9", &[(6, 8)])),
+        ),
+        (
+            b"//\xf3\xa0\x81\x81\nfn",
+            before_fn(7, comment_fault(2, 6, "U+E0041", &[(2, 6)])),
+        ),
+        (
+            b"// \xe2\x80\xaex\nfn",
+            before_fn(8, comment_fault(3, 6, "U+202E", &[(3, 6)])),
+        ),
+        (
+            b"// a\xe2\x80\x8bb\nfn",
+            before_fn(9, comment_fault(4, 7, "U+200B", &[(4, 7)])),
+        ),
+        (
+            b"// \x7f\nfn",
+            before_fn(5, comment_fault(3, 4, "U+007F", &[(3, 4)])),
+        ),
+        (
+            b"// \x1b[2J\nfn",
+            before_fn(8, comment_fault(3, 4, "U+001B", &[(3, 4)])),
+        ),
+        (
+            b"// a\rb\nfn",
+            before_fn(7, comment_fault(4, 5, "U+000D", &[(4, 5)])),
+        ),
+        (
+            b"// \xe2\x89\xa4\nfn",
+            before_fn(7, comment_fault(3, 6, "U+2264", &[(3, 6)])),
+        ),
+        (
+            b"// \xc3\xa9\r\nfn",
+            before_fn(7, comment_fault(3, 5, "U+00E9", &[(3, 5)])),
+        ),
+        (
+            b"a // \xc3\xa9",
+            vec![
+                (name("a"), at(0, 1), Vec::new()),
+                (
+                    TokenKind::Eof,
+                    at(7, 7),
+                    vec![comment_fault(5, 7, "U+00E9", &[(5, 7)])],
+                ),
+            ],
+        ),
+    ];
+
+    let mismatches = detailed_mismatches(cases);
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+}
+
+#[test]
+fn invalid_utf8_in_a_comment_is_a_comment_character_fault_on_its_first_byte() {
+    let cases: Vec<(&'static [u8], Vec<DetailedToken>)> = vec![
+        (
+            b"// \xff\nfn",
+            before_fn(5, comment_fault(3, 4, "byte 0xFF", &[(3, 4)])),
+        ),
+        (
+            b"// \xe2\x82\nfn",
+            before_fn(6, comment_fault(3, 4, "byte 0xE2 and 1 more", &[(3, 5)])),
+        ),
+    ];
+
+    let mismatches = detailed_mismatches(cases);
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+}
+
+#[test]
+fn a_comment_character_fault_counts_every_rejected_code_point_and_deletes_each_maximal_run() {
+    let text: &'static [u8] = b"// \xc3\xa9\xc3\xa9 x \xc3\xa9\nfn";
+
+    let tokens = detailed_view(text);
+
+    assert_eq!(
+        tokens,
+        before_fn(
+            13,
+            comment_fault(3, 5, "U+00E9 and 2 more", &[(3, 7), (10, 12)])
+        )
+    );
+}
+
+#[test]
+fn a_rejected_marker_with_rejected_characters_is_one_fault_of_the_marker_kind() {
+    let cases: Vec<StreamCase> = vec![
+        (
+            "# abc\u{E9}\nfn",
+            ASCII,
+            vec![
+                faulted(
+                    kind_of("fn", ASCII),
+                    8,
+                    10,
+                    Kind::HashComment,
+                    vec![edit(0, 1, "//"), edit(5, 7, "")],
+                ),
+                eof(10),
+            ],
+        ),
+        (
+            "; abc\u{E9}\nfn",
+            ASCII,
+            vec![
+                faulted(
+                    kind_of("fn", ASCII),
+                    8,
+                    10,
+                    Kind::Semicolon,
+                    vec![edit(0, 1, "//"), edit(5, 7, "")],
+                ),
+                eof(10),
+            ],
+        ),
+        (
+            "/* abc\u{E9} */\nfn",
+            ASCII,
+            vec![
+                faulted(
+                    kind_of("fn", ASCII),
+                    12,
+                    14,
+                    Kind::BlockComment,
+                    vec![edit(0, 11, "// abc ")],
+                ),
+                eof(14),
+            ],
+        ),
+        (
+            "a # abc\u{E9}\nb",
+            ASCII,
+            vec![
+                plain(name("a"), 0, 1),
+                unrepaired(2, 9, Kind::HashComment),
+                plain(name("b"), 10, 11),
+                eof(11),
+            ],
+        ),
+    ];
+
+    let mismatches = mismatched_streams(cases);
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+}
+
+#[test]
+fn a_marker_repair_touching_a_run_of_rejected_bytes_is_one_edit() {
+    let cases: [(&[u8], Vec<TokenView>); 2] = [
+        (
+            b";\xff\nfn",
+            vec![
+                faulted(
+                    kind_of("fn", ASCII),
+                    3,
+                    5,
+                    Kind::Semicolon,
+                    vec![edit(0, 2, "//")],
+                ),
+                eof(5),
+            ],
+        ),
+        (
+            b"#\xff\nfn",
+            vec![
+                faulted(
+                    kind_of("fn", ASCII),
+                    3,
+                    5,
+                    Kind::HashComment,
+                    vec![edit(0, 2, "//")],
+                ),
+                eof(5),
+            ],
+        ),
+    ];
+
+    let mismatches: Vec<(&[u8], Vec<TokenView>, Vec<TokenView>)> = cases
+        .into_iter()
+        .map(|(text, expected)| (text, view(text, ASCII), expected))
+        .filter(|(_, actual, expected)| actual != expected)
+        .collect();
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+}
+
+#[test]
+fn no_message_about_a_comment_holds_a_code_point_the_comment_rules_reject() {
+    let texts = COMMENT_FAULT_TEXTS;
+
+    let quoted = messages_with_rejected_code_points(&texts);
+
+    assert!(quoted.is_empty(), "{quoted:#?}");
 }

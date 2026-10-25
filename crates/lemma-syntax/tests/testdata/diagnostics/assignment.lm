@@ -1,0 +1,2 @@
+fn f(n: u64) -> u64 eff pure spec n equiv allow() impl { m = n return m }
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

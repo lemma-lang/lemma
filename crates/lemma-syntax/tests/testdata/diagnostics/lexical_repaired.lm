@@ -1,0 +1,9 @@
+fn f(n: u64) -> u64
+  eff pure
+  req n ≥ 1
+  spec ∑(i: u64 in 0..<n) { i } − .5
+  equiv allow()
+  impl {
+    let v: f32x4 = f32x4::splat(1_000.0)
+    return n
+  }

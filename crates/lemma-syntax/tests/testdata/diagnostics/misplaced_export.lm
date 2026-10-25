@@ -1,0 +1,4 @@
+export export fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+export let
+fn h() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+export

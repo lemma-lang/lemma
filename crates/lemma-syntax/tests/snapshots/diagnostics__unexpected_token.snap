@@ -1,0 +1,53 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `5`, expected a name","span":{"file":"unexpected_token.lm","start":{"byte":3,"line":1,"column":4},"end":{"byte":4,"line":1,"column":5}}}
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `u64`, expected `->`","span":{"file":"unexpected_token.lm","start":{"byte":69,"line":2,"column":8},"end":{"byte":72,"line":2,"column":11}}}
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `5`, expected a type","span":{"file":"unexpected_token.lm","start":{"byte":131,"line":3,"column":11},"end":{"byte":132,"line":3,"column":12}}}
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `*`, expected an expression","span":{"file":"unexpected_token.lm","start":{"byte":209,"line":4,"column":29},"end":{"byte":210,"line":4,"column":30}}}
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `1.5`, expected a name or an integer literal","span":{"file":"unexpected_token.lm","start":{"byte":258,"line":5,"column":14},"end":{"byte":261,"line":5,"column":17}}}
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `fp_contract`, expected `)` or `,`","span":{"file":"unexpected_token.lm","start":{"byte":379,"line":6,"column":54},"end":{"byte":390,"line":6,"column":65}}}
+{"kind":"unexpected-token","class":"syntax","message":"unexpected `x`, expected `export` or `fn`","span":{"file":"unexpected_token.lm","start":{"byte":472,"line":8,"column":1},"end":{"byte":473,"line":8,"column":2}}}
+
+error[unexpected-token]: unexpected `5`, expected a name
+ --> unexpected_token.lm:1:4
+  |
+1 | fn 5() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |    ^
+
+error[unexpected-token]: unexpected `u64`, expected `->`
+ --> unexpected_token.lm:2:8
+  |
+2 | fn b() u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |        ^^^
+
+error[unexpected-token]: unexpected `5`, expected a type
+ --> unexpected_token.lm:3:11
+  |
+3 | fn c() -> 5 eff pure spec 0 equiv allow() impl { return 0 }
+  |           ^
+
+error[unexpected-token]: unexpected `*`, expected an expression
+ --> unexpected_token.lm:4:29
+  |
+4 | fn d() -> u64 eff pure spec * 2 equiv allow() impl { return 0 }
+  |                             ^
+
+error[unexpected-token]: unexpected `1.5`, expected a name or an integer literal
+ --> unexpected_token.lm:5:14
+  |
+5 | fn e(a: &f32[1.5] @a4 ro) -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |              ^^^
+
+error[unexpected-token]: unexpected `fp_contract`, expected `)` or `,`
+ --> unexpected_token.lm:6:54
+  |
+6 | fn h() -> u64 eff pure spec 0 equiv allow(fp_reassoc fp_contract) impl { return 0 }
+  |                                                      ^^^^^^^^^^^
+
+error[unexpected-token]: unexpected `x`, expected `export` or `fn`
+ --> unexpected_token.lm:8:1
+  |
+8 | x
+  | ^

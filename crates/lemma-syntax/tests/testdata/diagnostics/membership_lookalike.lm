@@ -1,0 +1,2 @@
+fn f(n: u64) -> u64 eff pure spec sum(i: u64 ϵ 0..<n) { i } equiv allow() impl { return n }
+fn g() -> u64 eff pure spec ε equiv allow() impl { return 0 }

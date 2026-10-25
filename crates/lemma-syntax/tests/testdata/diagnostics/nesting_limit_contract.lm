@@ -1,0 +1,7 @@
+fn f(x: u64) -> u64
+  eff pure
+  spec (((((((((((((((((x)))))))))))))))))
+  equiv allow()
+  impl {
+    return x
+  }

@@ -1,0 +1,21 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"comment-character","class":"syntax","message":"a comment holds printable ASCII and tab only; found U+00E9 and 1 more","span":{"file":"comment_characters.lm","start":{"byte":6,"line":1,"column":7},"end":{"byte":8,"line":1,"column":8}},"repair":[{"span":{"file":"comment_characters.lm","start":{"byte":6,"line":1,"column":7},"end":{"byte":8,"line":1,"column":8}},"replacement":""},{"span":{"file":"comment_characters.lm","start":{"byte":9,"line":1,"column":9},"end":{"byte":10,"line":1,"column":10}},"replacement":""}]}
+{"kind":"comment-character","class":"syntax","message":"a comment holds printable ASCII and tab only; found U+2013","span":{"file":"comment_characters.lm","start":{"byte":50,"line":4,"column":9},"end":{"byte":53,"line":4,"column":10}},"repair":[{"span":{"file":"comment_characters.lm","start":{"byte":50,"line":4,"column":9},"end":{"byte":53,"line":4,"column":10}},"replacement":""}]}
+
+error[comment-character]: a comment holds printable ASCII and tab only; found U+00E9 and 1 more
+ --> comment_characters.lm:1:7
+  |
+1 | // café �
+  |       ^
+  = repair: replace comment_characters.lm:1:7-1:8 with ""
+  = repair: replace comment_characters.lm:1:9-1:10 with ""
+
+error[comment-character]: a comment holds printable ASCII and tab only; found U+2013
+ --> comment_characters.lm:4:9
+  |
+4 |   // ok – dash
+  |         ^
+  = repair: replace comment_characters.lm:4:9-4:10 with ""

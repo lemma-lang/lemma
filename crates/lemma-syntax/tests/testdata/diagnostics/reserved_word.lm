@@ -1,0 +1,5 @@
+fn loop() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+fn u8() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+fn f(n: u64) -> u64 eff pure spec n equiv allow() impl { let sum: u64 = n return sum }
+fn k(n: u64) -> u64 eff pure spec n equiv allow() impl { let Σ: u64 = n return n }
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

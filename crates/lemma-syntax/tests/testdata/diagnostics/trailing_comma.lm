@@ -1,0 +1,10 @@
+fn f(n: u64,) -> u64
+  eff pure
+  spec g(n,)
+  equiv allow(fp_reassoc,)
+  impl {
+    loop i: u64 in 0..<n step 1 carry(s: u64 = 0,) {
+      next s = s + i
+    }
+    return s
+  }

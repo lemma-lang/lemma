@@ -1,0 +1,2 @@
+fn f(loop: u64) -> u64 eff pure spec $ equiv allow() impl { return n ≥ 1 } 
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

@@ -1,0 +1,11 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"nesting-limit","class":"syntax","message":"nesting exceeds the limit of 16 levels; bind an inner expression to a name with `let`","span":{"file":"nesting_limit_impl.lm","start":{"byte":91,"line":6,"column":27},"end":{"byte":92,"line":6,"column":28}}}
+
+error[nesting-limit]: nesting exceeds the limit of 16 levels; bind an inner expression to a name with `let`
+ --> nesting_limit_impl.lm:6:27
+  |
+6 |     return ((((((((((((((((x))))))))))))))))
+  |                           ^
