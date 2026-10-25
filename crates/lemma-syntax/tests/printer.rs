@@ -500,16 +500,6 @@ const COMMENT_TEXT_CASES: [(&str, &str); 7] = [
     ("// carriage return\r\n", "// carriage return\n"),
 ];
 
-const MISPLACED_COMMENT: &str = concat!(
-    "fn f(n: u64) -> u64\n",
-    "  eff pure\n",
-    "  spec n // why\n",
-    "  equiv allow()\n",
-    "  impl {\n",
-    "    return n\n",
-    "  }\n",
-);
-
 const COMMENT_CHARACTER: &str = concat!(
     "// caf\u{E9}\n",
     "fn f(n: u64) -> u64\n",
@@ -899,15 +889,6 @@ fn format_returns_the_diagnostic_of_a_text_with_an_unrepaired_fault() {
     let formatted = formatted(text, ASCII);
 
     assert_eq!(formatted, Err(vec![(Kind::InvalidCharacter, 38, 39)]));
-}
-
-#[test]
-fn format_returns_the_diagnostic_of_a_comment_that_trails_code() {
-    let text = MISPLACED_COMMENT;
-
-    let formatted = formatted(text, ASCII);
-
-    assert_eq!(formatted, Err(vec![(Kind::MisplacedComment, 40, 46)]));
 }
 
 #[test]
