@@ -142,7 +142,9 @@ What a reader needs to read it:
   conditions are written `forall(i: u64 in 0..<n) { ... }`.
 - Every binder carries its type. Ranges are half-open and spelled `lo..<hi`.
 - No separators: each clause and statement starts with a keyword; blocks are braces; layout means
-  nothing. Comments are `//`.
+  nothing. Comments are `//`, in printable ASCII, each on a line of its own just before the item,
+  clause or statement it is about, as `dot`'s first line is; anywhere else a comment is a
+  diagnostic whose repair moves it there ([ADR 0011](adr/0011-comments.md)).
 - Nesting stops at 16 levels, a provisional limit: each `(`, `[`, `{` and unary operator opens
   one, and a binary chain such as `a + b + c` opens none. `dot` reaches 4, in its loads. Deeper
   code binds an inner expression with `let` ([ADR 0010](adr/0010-nesting-limit.md)).

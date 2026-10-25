@@ -4,9 +4,9 @@ This is the grammar of the subset the prototype parses: enough for `dot`, and th
 extensions build on. It follows every consequence of
 [ADR 0006](adr/0006-optimized-for-its-writer.md); the choices it makes beyond that ADR are recorded
 in [ADR 0008](adr/0008-prototype-grammar.md), its nesting limit in
-[ADR 0010](adr/0010-nesting-limit.md), and the C boundary it maps to in
-[ADR 0007](adr/0007-export-mapping-and-content-hash.md). It is provisional: the ADR that records
-ADR 0006's calibration freezes it.
+[ADR 0010](adr/0010-nesting-limit.md), its comments in [ADR 0011](adr/0011-comments.md), and the C
+boundary it maps to in [ADR 0007](adr/0007-export-mapping-and-content-hash.md). It is provisional:
+the ADR that records ADR 0006's calibration freezes it.
 
 The grammar carries both variants of choice C1 (ADR 0006). One is active per run, behind a switch;
 the other's spellings are recognized only to be rejected. **The provisional default is variant A**,
@@ -56,9 +56,9 @@ characters, longest match first.
 
 ### Source text
 
-A source file is UTF-8. Invalid UTF-8 is rejected (`invalid-encoding`), and so is a byte-order
-mark (`lookalike`, repair: delete it). Code points are compared exactly: no Unicode normalization
-is applied.
+A source file is UTF-8. Invalid UTF-8 is rejected (`invalid-encoding`; inside a comment,
+`comment-character`), and so is a byte-order mark (`lookalike`, repair: delete it). Code points are
+compared exactly: no Unicode normalization is applied.
 
 ### Whitespace
 
@@ -70,9 +70,55 @@ of whitespace by a single space yields the same AST.
 
 ### Comments
 
-`//` starts a comment that runs to the next line feed. It is the only comment form, and the only
-construct that ends at a line break. `///` is an ordinary comment. Comments are not part of the
-AST, the contract emission, or the content hash; the formatter keeps them (section 5).
+`//` starts a comment that runs to the end of its line: to the next line feed, or to the CR of a
+CRLF line end, which belongs to the line end and not to the comment. It is the only comment form,
+and the only construct that ends at a line break. `///` is an ordinary comment. Comments are not
+part of the AST, the contract emission, or the content hash; the formatter keeps them (section 5).
+Two rules hold of every comment ([ADR 0011](adr/0011-comments.md)).
+
+**Its place.** A comment stands on a line of its own, before an item, a clause or a statement, and
+is attached to it: only spaces and tabs precede it on its line, and the next token, other comments
+skipped, is the first token of an item (`export` or `fn`), of a clause (`eff`, `req`, `ens`, `spec`,
+`equiv`, `impl`) or of a statement (`let`, `loop`, `next`, `return`). Every other comment is a
+`misplaced-comment`: one that follows code on its line, one inside a construct (a parameter list,
+an expression, a carry list, between `impl` and its `{`), one before a closing `}`, one after the
+last item. A carry is not a statement: a comment goes above the `loop`, not above a carry.
+
+```
+// Dot product of two f32 arrays.
+export fn dot(n: u64, a: &f32[n] @a128 ro, b: &f32[n] @a128 ro) -> f32
+  eff pure
+  // Four loads of four lanes per iteration.
+  req n % 16 == 0 // misplaced: it follows code on its line
+```
+
+The first comment is attached to the item, the second to the `req` clause, and the third is
+misplaced. The repair of a misplaced comment moves it to its own line just before the first token
+of the innermost item, clause or statement that contains the last token before the comment. So the
+third comment, after `0`, goes above `req`, below the second; a comment after a carry goes above
+its `loop`, one inside the parameter list above the item (`export`, or `fn`), one before the `}` of
+a block above the last statement of that block, one after the last item above that item's `impl`.
+The repair is two edits. The first inserts, at the start of that first token, the comment's text
+and a line feed, followed by the spaces and tabs before the token when it is the first of its line,
+and preceded by a line feed when it is not. The second deletes the comment with the spaces and tabs
+before it and, when nothing else is on its line, the whole line with its line end. Comments moved
+before the same token keep their source order ([`docs/diagnostics.md`](diagnostics.md), section
+3). In a file with no item, a comment has nowhere to go: `misplaced-comment` without repair.
+
+**Its characters.** A comment's text is printable ASCII, U+0020 to U+007E, and tab. Any other code
+point in a comment, non-ASCII or control (a CR that does not end the line, DEL, an escape), and any
+byte that is not UTF-8, is a `comment-character`, repaired by deleting it: a comment carries no
+meaning, and the rule keeps out the text a person cannot see and a model reads (tag characters,
+bidirectional controls, zero-width characters). A comment yields one such record, spanning its
+first rejected code point or byte, whose repair deletes each maximal run of them; its message names
+them by number, never by the code point itself.
+
+**One record per comment.** A comment that breaks more than one rule (its marker, `;`, `#` or
+`/* */`, its characters, its place) yields one record, of the first kind that applies among
+`semicolon`, `hash-comment` and `block-comment`, then `comment-character`, then
+`misplaced-comment`. Its message says what else the comment breaks, and its repair, when every
+rule broken has one, fixes them all at once: a moved comment is inserted with `//` and without its
+rejected code points. Separate records would carry overlapping repairs.
 
 ### Identifiers
 
@@ -158,11 +204,13 @@ caught where it is written: `;`, `::`, `..`, `...`, `..=`, `++`, `--`, `+=`, `-=
 The quantifier is not one of ADR 0006's two C1 symbols; it follows C1's outcome (ADR 0008), so one
 switch selects all three. `SUM`, `IN` and `FORALL` below stand for the active variant's spelling.
 The inactive variant's spelling is rejected with `c1-other-variant`, whose repair is the active
-spelling. Non-ASCII text appears only in comments and, under variant U, as these three code points.
+spelling. Non-ASCII text appears only under variant U, as these three code points: comments are
+printable ASCII (above), and a file under variant A is ASCII.
 
 ### Lookalikes
 
-Rejected with the kind `lookalike`. "Active" means the active variant's spelling. A repair marked
+Rejected with the kind `lookalike`, outside comments; inside a comment, every code point of this
+table is a `comment-character`. "Active" means the active variant's spelling. A repair marked
 "where expected" is offered only where the parser expects that token; elsewhere the code point is a
 `non-ascii` diagnostic without repair.
 
@@ -473,18 +521,19 @@ and LLVM's `llvm.vector.reduce.fadd` is sequential from a start value unless it 
 ## 5. Canonical form
 
 The formatter is the printer of the AST (P2): idempotent, and parsing its output yields the same
-AST. `lemma check` accepts any layout; the canonical form is what is stored and shown back.
+AST. `lemma check` accepts any layout but a misplaced comment (section 2, ADR 0006's amendment to
+P6); the canonical form is what is stored and shown back.
 
 - **Lines and indentation.** The `fn` line (with `export`) starts at column 0. One clause per line,
   indented two spaces. A block's `{` ends the line that opens it; its statements are one per line,
   two spaces deeper than that line; its `}` is on a line of its own at that line's indentation. So
   in an `impl` block, statements are at four spaces, and in a loop body two deeper than the `loop`.
-- **Empty lines and line ends.** One empty line separates two items, and the last item from the
-  comments that follow it (below); there is no other empty line: none at the start of the file,
-  between clauses, statements or carries, or at the end. The comments attached to an item belong to
-  it, so the empty line goes before them, never between them and the `fn` line. Every line ends
-  with LF, the last one included: the output ends with exactly one LF, and a file with no item and
-  no comment formats to the empty text.
+- **Empty lines and line ends.** One empty line separates two items; there is no other empty line:
+  none at the start of the file, between clauses, statements or carries, or at the end. The comments
+  attached to an item belong to it, so the empty line goes before them, never between them and the
+  `fn` line. Every line ends with LF, the last one included: the output ends with exactly one LF,
+  and a file with no item formats to the empty text (it holds no comment either, since a comment in
+  a file with no item is misplaced).
 - **Sum and quantifier bodies.** The body of a `sum` or a `forall` is an expression, not a block of
   statements, and stays on its line: `{ e }`, with one space inside each brace, as in dot's
   `sum(i: u64 in 0..<n) { a[i] * b[i] }`. The two rules above for blocks apply to the statement
@@ -498,31 +547,22 @@ AST. `lemma check` accepts any layout; the canonical form is what is stored and 
   around binary operators (`+`, `*`, `==`, `&&`, …), around `=` and `->`, after `,` and `:`, and
   before every `{` and every `@aN`. No space inside parentheses or brackets, around `.` and `..<`,
   or after a unary operator: `f32x4.splat(0.0)`, `0..<n`, `-x`, `!c`.
+- **Two unary minuses.** A unary `-` whose operand is itself a unary `-` expression is followed by
+  one space: `- -x`, and `- - -x` for three. Written together, `--` is one token by longest match
+  (section 2), always an `unsupported-operator` without repair, so `--x` does not parse back to the
+  same AST. `!` needs no such rule: its operand is a primary, which never begins with `!` or `-`, and
+  `!!` is not a token (it lexes as two `!`, the second of which the parser rejects).
 - No column alignment anywhere.
 - Parentheses as written; permissions in table order.
-- A comment is attached to the item, clause or statement it precedes, or, when it follows code on
-  the same line, to that line's construct; it is printed in the same place, preceded by one space
-  when it trails code. The bullets below settle the places that the canonical form's lines cannot
-  keep. Comments printed at the same place keep their source order.
-- **Trailing comments.** A comment trails code when it follows, on the same line of the input, the
-  last token of a line of the canonical form: `req n % 16 == 0 // why`, a carry and its comma,
-  `impl { // why`. It stays at the end of that line.
-- **Comments inside a line.** A comment between two tokens that the canonical form prints on the
-  same line cannot stay there, whether it trailed code or stood on its own line in the input: it
-  leaves that line, and is placed as a comment on its own line just before it (next bullet). In a
-  signature written over several lines, `n: u64, // count` moves above the `fn` line, at column 0,
-  after the item's other comments; a comment inside a `req` expression moves above the `req` line,
-  at two spaces; one inside a single carry, `carry(c: T = e) {`, moves above the `loop` line.
-- **Comments on their own line.** A comment on its own line before a line of the canonical form is
-  printed on its own line just before it, at its indentation: before an item at column 0, a clause
-  at two spaces, a statement or a carry at its own indentation. Before a closing `}`, or before the
-  `) {` that closes a carry list printed over several lines, it stays before it, two spaces deeper
-  than that line: at the indentation of the block's statements, or of the carries. Comments after
-  the last item stay after it, at column 0, separated from it by one empty line.
+- **Comments.** A comment stands before the item, clause or statement it is attached to (section 2),
+  and is printed on its own line just before it, at its indentation: column 0 before an item, two
+  spaces before a clause, a statement's own indentation before a statement. Comments attached to one
+  construct keep their order. The formatter never moves a comment: a text in which one is misplaced
+  has a diagnostic, and does not format (below).
 - **Comment text.** A comment is printed as written, `//` included (`///` stays `///`, and no space
-  is added after `//`), minus the spaces, tabs and CR at its end. A comment runs to the line feed
-  (section 2), so the CR of a CRLF line end belongs to its text and is dropped with it; the other
-  CRs of a CRLF input are whitespace. A CRLF input therefore formats to LF line ends only.
+  is added after `//`), minus the spaces and tabs at its end. The CR of a CRLF line end is not part
+  of the comment (section 2), and the other CRs of a CRLF input are whitespace, so a CRLF input
+  formats to LF line ends only.
 
 The formatter formats only a text with no syntax diagnostic. When the lexer or the parser reports
 any diagnostic of section 7, with a repair or without, the formatter returns those diagnostics and
@@ -561,13 +601,19 @@ repair ends the parse of its function; parsing resumes at the next `fn` or `expo
 occur inside a function. So a function yields at most one diagnostic without repair, and none that
 only follows from an earlier one (P5).
 
+A comment yields at most one record, whose repair fixes everything the comment breaks: its marker
+(`semicolon`, `hash-comment`, `block-comment`), its characters and its place (section 2,
+"Comments").
+
 | Kind | Raised by | Repair |
 |---|---|---|
-| `invalid-encoding` | bytes that are not UTF-8 | none |
-| `invalid-character` | an ASCII character that begins no token (`$`, `` ` ``, `'`, `"`, `?`, `\`, a control character), `@` not followed by `a` and digits | none |
+| `invalid-encoding` | bytes that are not UTF-8, outside a comment | none |
+| `invalid-character` | outside a comment, an ASCII character that begins no token (`$`, `` ` ``, `'`, `"`, `?`, `\`, a control character), `@` not followed by `a` and digits | none |
 | `non-ascii` | a non-ASCII code point outside a comment that is neither an active C1 symbol nor a lookalike repaired at that position | none |
 | `lookalike` | a code point of the lookalike table | per the table |
 | `c1-other-variant` | the inactive C1 variant's spelling: `Σ`, `∈` or `∀` under A, `sum`, `in` or `forall` under U | the active spelling |
+| `comment-character` | in a comment, a code point other than U+0020 to U+007E and tab, or a byte that is not UTF-8; one record per comment, spanning the first (section 2) | delete each maximal run of them |
+| `misplaced-comment` | a comment that does not stand on its own line before an item, a clause or a statement (section 2) | move it to its own line before the innermost item, clause or statement containing the token before it (section 2); none in a file with no item |
 | `semicolon` | `;` | when it is the first token of its line, replace it, and any `;` directly after it, by `//`; otherwise delete it when the rest of its line is empty or begins with `}` or a keyword; otherwise none |
 | `block-comment` | `/*` | `//` and the comment's text, when the comment closes on the same line and nothing follows it; otherwise none |
 | `hash-comment` | `#` | `//`, when `#` is the first character of its line and is not followed by `[`; otherwise none |

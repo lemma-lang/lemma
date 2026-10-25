@@ -6,6 +6,8 @@
   approved by the maintainer; see ADR 0008
 - Amended: 2026-10-20, one sentence added under P5 making a repair a list of edits, decided by the
   maintainer; see ADR 0009
+- Amended: 2026-10-25, one sentence added under P6 making the place of a comment the one piece of
+  layout that can be an error, decided by the maintainer; see ADR 0011
 
 ## Context
 
@@ -195,6 +197,9 @@ once comments are removed, replacing every run of whitespace by a single space y
 AST. Line comments are the only construct that ends at a line break. Besides the cost to the
 writer, a wrongly indented line that still parses moves a statement into or out of a loop without
 any error, and in a spec no proof would catch it. Layout in a submission is never an error.
+The place of a comment is the one exception: a comment that does not stand on a line of its own
+before an item, a clause or a statement is an error (ADR 0011); the whitespace property above is
+unchanged.
 
 - Hypothesis: no failure and no silent bug has layout as its cause, and explicit delimiters do not
   become a source of failures of their own.

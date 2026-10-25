@@ -110,6 +110,10 @@ A repair is a **non-empty list of edits, applied together, all or none**. Most r
   not: deleting `req k < n` alone would drop a precondition, and inserting `< n` into `k`'s type in
   the same repair keeps it. A repair never adds, removes or alters a `req`, an `ens`, the spec, a
   bound or a permission (ADR 0006).
+- **Between records.** When the repairs of several records insert at the same position, which
+  happens when several comments move before the same token (`misplaced-comment`,
+  `docs/grammar.md`, section 2), their texts are applied in record order (section 4): the earlier
+  record's text comes first, so the comments keep their source order (ADR 0011).
 - **Offered, not applied.** The compiler never edits the source. The parser's recovery continues as
   if the whole repair had been applied (`docs/grammar.md`, section 7).
 
@@ -324,6 +328,14 @@ decided there.
   their spelling, then the token classes in words (`a name`, `an integer literal`, `a type`) in
   alphabetical order, joined as `x`, `x or y`, `x, y or z`. For example: ``unexpected `]`, expected
   `)` or `,` ``.
+- `comment-character`: `a comment holds printable ASCII and tab only; found <first>`, followed by
+  ` and <k> more` when the comment holds `k` other rejected code points or bytes, at least one.
+  `<first>` is the first of them: a code point as `U+` and its number in at least four uppercase
+  hexadecimal digits (`U+202E`, `U+E0041`), a byte that is not UTF-8 as `byte 0x` and two uppercase
+  hexadecimal digits (`byte 0xFF`). For example:
+  `a comment holds printable ASCII and tab only; found U+202E and 3 more`. No message about a
+  comment contains a code point the comment rules reject, so a record does not pass hidden text on
+  to the model that reads it (ADR 0011).
 - `nesting-limit`: in the impl,
   ``nesting exceeds the limit of 16 levels; bind an inner expression to a name with `let` ``; in
   the signature or a contract clause, which have no `let`,
