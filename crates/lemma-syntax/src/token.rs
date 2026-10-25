@@ -377,6 +377,9 @@ pub struct Fault {
     pub message: String,
     /// The edits of the repair, applied together; empty when the fault has no repair.
     pub repair: Vec<(TextRange, String)>,
+    /// The range the record is reported on, when it is neither the token nor the text its
+    /// repair edits.
+    pub span: Option<TextRange>,
 }
 
 /// A token with its byte range and the faults found in it and in the trivia before it.
@@ -390,12 +393,13 @@ pub struct Token {
     pub faults: Vec<Fault>,
 }
 
-/// A `//` comment, from its `//` to before the line feed.
+/// A `//` comment, from its `//` to before the line end, the CR of a CRLF line end excluded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Comment {
     /// The bytes of the comment in the source text.
     pub range: TextRange,
-    /// The comment's text, including its `//`.
+    /// The comment's text, including its `//`, with the code points and bytes a comment may
+    /// not hold removed.
     pub text: String,
 }
 

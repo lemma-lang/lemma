@@ -49,6 +49,10 @@ pub enum Kind {
     Lookalike,
     /// The `c1-other-variant` kind, of class `syntax`.
     C1OtherVariant,
+    /// The `comment-character` kind, of class `syntax`.
+    CommentCharacter,
+    /// The `misplaced-comment` kind, of class `syntax`.
+    MisplacedComment,
     /// The `semicolon` kind, of class `syntax`.
     Semicolon,
     /// The `block-comment` kind, of class `syntax`.
@@ -189,6 +193,8 @@ impl Kind {
         Self::NonAscii,
         Self::Lookalike,
         Self::C1OtherVariant,
+        Self::CommentCharacter,
+        Self::MisplacedComment,
         Self::Semicolon,
         Self::BlockComment,
         Self::HashComment,
@@ -264,6 +270,8 @@ impl Kind {
             Self::NonAscii => "non-ascii",
             Self::Lookalike => "lookalike",
             Self::C1OtherVariant => "c1-other-variant",
+            Self::CommentCharacter => "comment-character",
+            Self::MisplacedComment => "misplaced-comment",
             Self::Semicolon => "semicolon",
             Self::BlockComment => "block-comment",
             Self::HashComment => "hash-comment",
@@ -345,6 +353,8 @@ impl Kind {
             | Self::NonAscii
             | Self::Lookalike
             | Self::C1OtherVariant
+            | Self::CommentCharacter
+            | Self::MisplacedComment
             | Self::Semicolon
             | Self::BlockComment
             | Self::HashComment

@@ -1,6 +1,7 @@
 //! The lexer of `docs/grammar.md` section 2: every token with its byte range and the lexical
 //! faults of section 7 attached to it. It takes no feedback from the parser.
 
+mod comment;
 mod number;
 
 use lemma_diagnostics::Kind;
@@ -101,6 +102,7 @@ fn fault(kind: Kind, message: String, repair: Vec<(TextRange, String)>) -> Fault
         kind,
         message,
         repair,
+        span: None,
     }
 }
 
@@ -277,10 +279,17 @@ impl Lexer<'_> {
         String::from_utf8_lossy(slice).into_owned()
     }
 
+    /// The end of the line at `from`: before its line feed, and before the CR of a CRLF.
     fn line_end(&self, from: usize) -> usize {
         let rest = self.bytes.get(from..).unwrap_or_default();
         let length = rest.iter().position(|&byte| byte == b'\n');
-        from + length.unwrap_or(rest.len())
+        let line_feed = from + length.unwrap_or(rest.len());
+        let Some(before) = line_feed.checked_sub(1).filter(|&before| before >= from) else {
+            return line_feed;
+        };
+        let ends_with_crlf =
+            (self.byte(before), self.byte(line_feed)) == (Some(b'\r'), Some(b'\n'));
+        if ends_with_crlf { before } else { line_feed }
     }
 
     fn follows_word_byte(&self, position: usize) -> bool {
@@ -337,7 +346,7 @@ impl Lexer<'_> {
         match self.byte(start + 1) {
             Some(b'/') => {
                 let end = self.line_end(start);
-                self.add_comment(range(start, end), "", start);
+                self.add_comment(range(start, end), "", start, None);
                 true
             }
             Some(b'*') => self.consume_block_comment(),
@@ -345,38 +354,30 @@ impl Lexer<'_> {
         }
     }
 
-    /// Records a comment whose text is `prefix` followed by the bytes from `body_start`.
-    fn add_comment(&mut self, comment_range: TextRange, prefix: &str, body_start: usize) {
-        let body = self.comment_body(body_start, comment_range.end);
+    /// Records a comment whose text is `prefix` followed by the bytes from `body_start`, and its
+    /// one fault: the `marker` fault, or the comment-character fault, or both merged.
+    fn add_comment(
+        &mut self,
+        comment_range: TextRange,
+        prefix: &str,
+        body_start: usize,
+        marker: Option<Fault>,
+    ) {
+        let end = comment_range.end;
+        let rejected = comment::find(self.bytes, body_start, end);
+        let body = comment::text_without(self.bytes, body_start, end, rejected.as_ref());
+        let fault = match (marker, rejected) {
+            (Some(marker), Some(rejected)) => Some(rejected.merged_into(marker)),
+            (Some(marker), None) => Some(marker),
+            (None, Some(rejected)) => Some(rejected.fault()),
+            (None, None) => None,
+        };
+        self.pending.extend(fault);
         self.comments.push(Comment {
             range: comment_range,
             text: format!("{prefix}{body}"),
         });
-        self.position = comment_range.end;
-    }
-
-    /// The text of a comment, reporting each maximal run of invalid UTF-8 in it.
-    fn comment_body(&mut self, from: usize, to: usize) -> String {
-        let mut position = from;
-        while position < to {
-            let Some(decoded) = decode(self.bytes, position) else {
-                break;
-            };
-            match decoded {
-                Decoded::Char(_, length) => position += length,
-                Decoded::Invalid(_) => {
-                    let end = self.invalid_run_end(position).min(to);
-                    let message = format!(
-                        "the bytes of this comment are not UTF-8: {}",
-                        self.text(position, end)
-                    );
-                    self.pending
-                        .push(fault(Kind::InvalidEncoding, message, Vec::new()));
-                    position = end;
-                }
-            }
-        }
-        self.text(from, to)
+        self.position = end;
     }
 
     fn invalid_run_end(&self, start: usize) -> usize {
@@ -406,12 +407,15 @@ impl Lexer<'_> {
         let end = close + 2;
         let body = self.bytes.get(start + 2..close).unwrap_or_default();
         let single_line = !body.contains(&b'\n') && self.rest_of_line_is_blank(end);
-        let Some(body_text) = std::str::from_utf8(body).ok().filter(|_| single_line) else {
+        if !single_line {
             return false;
-        };
+        }
+        let rejected = comment::find(self.bytes, start + 2, close);
+        let body_text = comment::text_without(self.bytes, start + 2, close, rejected.as_ref());
         let replacement = format!("//{body_text}");
         let comment_range = range(start, end);
-        let message = "a block comment is not part of the language; use `//`".to_string();
+        let base = "a block comment is not part of the language; use `//`";
+        let message = rejected.map_or_else(|| base.to_string(), |found| found.note_to(base));
         let edit = (comment_range, replacement.clone());
         self.pending
             .push(fault(Kind::BlockComment, message, vec![edit]));
@@ -432,10 +436,9 @@ impl Lexer<'_> {
             }
             let edit = (range(start, after), "//".to_string());
             let message = "`;` is not part of the language; comments start with `//`".to_string();
-            self.pending
-                .push(fault(Kind::Semicolon, message, vec![edit]));
+            let marker = fault(Kind::Semicolon, message, vec![edit]);
             let end = self.line_end(after);
-            self.add_comment(range(start, end), "//", after);
+            self.add_comment(range(start, end), "//", after, Some(marker));
             return true;
         }
         if !self.rest_allows_deleting_semicolon(start + 1) {
@@ -483,10 +486,9 @@ impl Lexer<'_> {
         }
         let edit = (range(start, start + 1), "//".to_string());
         let message = "`#` is not part of the language; comments start with `//`".to_string();
-        self.pending
-            .push(fault(Kind::HashComment, message, vec![edit]));
+        let marker = fault(Kind::HashComment, message, vec![edit]);
         let end = self.line_end(start);
-        self.add_comment(range(start, end), "//", start + 1);
+        self.add_comment(range(start, end), "//", start + 1, Some(marker));
         true
     }
 
@@ -534,25 +536,37 @@ impl Lexer<'_> {
             '0'..='9' => self.scan_number(start),
             '.' if next_is_digit => self.scan_number(start),
             '@' => self.scan_alignment(start),
-            '/' if self.byte(start + 1) == Some(b'*') => {
-                let end = self.block_comment_end(start);
-                let message = format!("`{}` is a block comment; use `//`", self.text(start, end));
-                Scanned::rejected(Kind::BlockComment, message, end)
-            }
-            '#' => {
-                let end = self.line_end(start);
-                let message = format!(
-                    "`{}` is not a comment; comments start with `//`",
-                    self.text(start, end)
-                );
-                Scanned::rejected(Kind::HashComment, message, end)
-            }
+            '/' if self.byte(start + 1) == Some(b'*') => self.scan_rejected_block_comment(start),
+            '#' => self.scan_rejected_hash_comment(start),
             ';' => {
                 let message = "`;` is not part of the language".to_string();
                 Scanned::rejected(Kind::Semicolon, message, start + 1)
             }
             _ => self.scan_operator(start),
         }
+    }
+
+    /// A block comment without a repair; it is not quoted when it holds rejected characters.
+    fn scan_rejected_block_comment(&self, start: usize) -> Scanned {
+        let end = self.block_comment_end(start);
+        let message = match comment::find(self.bytes, start + 2, end) {
+            Some(rejected) => rejected.note_to("`/*` is a block comment; use `//`"),
+            None => format!("`{}` is a block comment; use `//`", self.text(start, end)),
+        };
+        Scanned::rejected(Kind::BlockComment, message, end)
+    }
+
+    /// A `#` line without a repair; it is not quoted when it holds rejected characters.
+    fn scan_rejected_hash_comment(&self, start: usize) -> Scanned {
+        let end = self.line_end(start);
+        let message = match comment::find(self.bytes, start + 1, end) {
+            Some(rejected) => rejected.note_to("`#` is not a comment; comments start with `//`"),
+            None => format!(
+                "`{}` is not a comment; comments start with `//`",
+                self.text(start, end)
+            ),
+        };
+        Scanned::rejected(Kind::HashComment, message, end)
     }
 
     fn scan_operator(&self, start: usize) -> Scanned {

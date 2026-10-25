@@ -125,8 +125,12 @@ fn expectation_list(expected: &[Expectation]) -> String {
     format!("{} or {last}", items.join(", "))
 }
 
-/// The range a fault is reported on: the token when the repair edits it, else the edited text.
+/// The range a fault is reported on: the one it names, else the token when the repair edits it,
+/// else the edited text.
 fn fault_range(fault: &Fault, token_range: TextRange) -> TextRange {
+    if let Some(span) = fault.span {
+        return span;
+    }
     let start = fault.repair.iter().map(|edit| edit.0.start).min();
     let end = fault.repair.iter().map(|edit| edit.0.end).max();
     match (start, end) {

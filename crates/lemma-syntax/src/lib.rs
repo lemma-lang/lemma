@@ -4,6 +4,7 @@ mod ast;
 mod dump;
 mod lexer;
 mod parser;
+mod printer;
 mod token;
 
 pub use ast::{
@@ -14,6 +15,7 @@ pub use ast::{
 pub use dump::dump;
 pub use lexer::lex;
 pub use parser::{Parsed, parse};
+pub use printer::{format, print};
 pub use token::{
     C1Variant, Comment, Fault, Keyword, Lexed, ScalarClass, ScalarType, TextRange, Token,
     TokenKind, VectorType,
