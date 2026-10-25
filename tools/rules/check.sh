@@ -2,11 +2,11 @@
 #
 # Checks the shape rules on what changed since a reference.
 #
-#   .claude/rules/check.sh <reference>
+#   tools/rules/check.sh <reference>
 #
-# The coder and the tester pass HEAD (their pass, not committed yet), the
-# reviewer the branch's merge-base. The working tree is compared with the
-# reference, untracked files included.
+# Pass HEAD to check uncommitted work, the branch's merge-base to check a whole
+# branch. The working tree is compared with the reference, untracked files
+# included.
 #
 # The rules only apply to the code written in the pass: a finding is kept only
 # if it touches an added or modified line. It is "new" if its first line is,
@@ -45,7 +45,7 @@ trap 'rm -rf "$tmp"' EXIT
 not_checked=""
 
 # --- Added lines: file, number, content --------------------------------------
-# .claude/ holds the workflow's tooling, indexed by ticket key on purpose.
+# .claude/ holds local agent tooling, indexed by ticket key on purpose.
 git diff -U0 --no-ext-diff --no-color --diff-filter=AMR "$ref" -- . ':(exclude).claude' \
   | awk '
       /^\+\+\+ / { f = substr($0, 7); next }
@@ -96,9 +96,10 @@ grep -vE '\.rs$' "$tmp/files" \
 "
 
 # --- Ticket key, in the content as in the file names -------------------------
-# Both the prefix the project declares and the one in the branch name: a wrong
-# TICKET_KEY must not hide the key the branch actually carries.
-declared=""
+# Both the prefix the project declares (LEM, overridden by a local
+# .claude/project.conf) and the one in the branch name: a wrong TICKET_KEY must
+# not hide the key the branch actually carries.
+declared=LEM
 [ -f .claude/project.conf ] \
   && declared=$(sed -n 's/^TICKET_KEY=[[:space:]]*\([A-Za-z][A-Za-z0-9]*\).*/\1/p' .claude/project.conf | head -1)
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)

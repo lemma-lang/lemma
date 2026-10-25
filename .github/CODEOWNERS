@@ -9,6 +9,8 @@
 /taplo.toml @acaetano-rodium
 /_typos.toml @acaetano-rodium
 /.claude/ @acaetano-rodium
+/.agents/ @acaetano-rodium
+/tools/ @acaetano-rodium
 /CLAUDE.md @acaetano-rodium
 /AGENTS.md @acaetano-rodium
 /Cargo.toml @acaetano-rodium
