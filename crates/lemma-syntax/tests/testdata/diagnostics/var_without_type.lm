@@ -1,0 +1,9 @@
+fn f() -> u64
+  eff pure
+  spec 0
+  equiv allow()
+  impl {
+    var x = 1
+    return x
+  }
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

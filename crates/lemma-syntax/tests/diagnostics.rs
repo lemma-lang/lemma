@@ -86,7 +86,7 @@ const LEXICAL_CASES: [CorpusCase; 5] = [
     ),
 ];
 
-const TOKEN_CASES: [CorpusCase; 13] = [
+const TOKEN_CASES: [CorpusCase; 17] = [
     (
         "unexpected_token.lm",
         ASCII,
@@ -183,9 +183,40 @@ const TOKEN_CASES: [CorpusCase; 13] = [
         &[(Kind::Lookalike, 44, 46, &[(44, 46, "\u{2208}")])],
     ),
     ("almost_equal.lm", ASCII, &[(Kind::Lookalike, 35, 38, &[])]),
+    (
+        "ampersand_in_loop_range.lm",
+        ASCII,
+        &[(Kind::UnsupportedOperator, 90, 91, &[])],
+    ),
+    (
+        "clause_foreign_word_out_of_place.lm",
+        ASCII,
+        &[(Kind::ForeignKeyword, 33, 40, &[(33, 40, "eff")])],
+    ),
+    (
+        "zero_width_space_in_assigned_name.lm",
+        ASCII,
+        &[
+            (Kind::Lookalike, 69, 75, &[(71, 74, "")]),
+            (Kind::Assignment, 69, 75, &[]),
+        ],
+    ),
+    (
+        "var_without_type.lm",
+        ASCII,
+        &[(Kind::Assignment, 63, 66, &[])],
+    ),
 ];
 
-const DELIMITER_CASES: [CorpusCase; 5] = [
+const DELIMITER_CASES: [CorpusCase; 6] = [
+    (
+        "unclosed_delimiter_at_keyword.lm",
+        ASCII,
+        &[
+            (Kind::UnclosedDelimiter, 86, 86, &[]),
+            (Kind::UnclosedDelimiter, 146, 146, &[]),
+        ],
+    ),
     (
         "unclosed_delimiter_repaired.lm",
         ASCII,
@@ -273,7 +304,7 @@ const NESTING_CORPUS_CASES: [CorpusCase; 2] = [
     ),
 ];
 
-const RECOVERED_ITEM_CASES: [ItemCase; 16] = [
+const RECOVERED_ITEM_CASES: [ItemCase; 20] = [
     ("lexical_unrepaired.lm", ASCII, &["fn g"]),
     ("invalid_encoding.lm", ASCII, &["fn g"]),
     ("comment_markers.lm", ASCII, &["fn f"]),
@@ -290,6 +321,10 @@ const RECOVERED_ITEM_CASES: [ItemCase; 16] = [
     ("skipped_faults.lm", ASCII, &["fn g"]),
     ("stop_token_is_resume_token.lm", ASCII, &["fn g"]),
     ("repaired_then_unrepaired.lm", ASCII, &["fn g"]),
+    ("unclosed_delimiter_at_keyword.lm", ASCII, &["fn g"]),
+    ("ampersand_in_loop_range.lm", ASCII, &["fn g"]),
+    ("zero_width_space_in_assigned_name.lm", ASCII, &["fn g"]),
+    ("var_without_type.lm", ASCII, &["fn g"]),
 ];
 
 const REPAIRED_DUMP_CASES: [DumpCase; 4] = [
@@ -543,6 +578,24 @@ fn dump_mismatches(cases: &[DumpCase]) -> Result<Vec<DumpMismatch>, io::Error> {
         mismatches.extend((actual != expected).then(|| (file, actual, expected.to_string())));
     }
     Ok(mismatches)
+}
+
+/// The messages of the file's records of `kind` that hold a code point outside printable ASCII.
+fn unprintable_messages(
+    file: &str,
+    variant: C1Variant,
+    kind: Kind,
+) -> Result<Vec<String>, io::Error> {
+    Ok(corpus_records(file, variant)?
+        .into_iter()
+        .filter(|record| record.kind == kind)
+        .map(|record| record.message)
+        .filter(|message| {
+            !message
+                .chars()
+                .all(|character| matches!(character, ' '..='~'))
+        })
+        .collect())
 }
 
 fn corpus_messages(file: &str, variant: C1Variant) -> Result<Vec<String>, io::Error> {
@@ -892,6 +945,17 @@ fn unexpected_token_messages_list_spelled_tokens_then_classes() -> Result<(), Bo
     let messages = corpus_messages(file, ASCII)?;
 
     assert_eq!(messages, UNEXPECTED_TOKEN_MESSAGES);
+    Ok(())
+}
+
+#[test]
+fn an_assignment_message_does_not_pass_on_a_zero_width_space_of_the_name()
+-> Result<(), Box<dyn Error>> {
+    let file = "zero_width_space_in_assigned_name.lm";
+
+    let messages = unprintable_messages(file, ASCII, Kind::Assignment)?;
+
+    assert!(messages.is_empty(), "{messages:#?}");
     Ok(())
 }
 
