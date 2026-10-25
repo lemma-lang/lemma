@@ -69,8 +69,10 @@ source ─► verify (Z3) ─► IR ─► in-memory JIT ─► spec vs impl tes
 
 ## Status
 
-Skeleton only: no crate implements its role yet.
-LLVM (`inkwell`) and Z3 are wired in, each checked by a linking test.
+Early: `lemma-codegen` emits objects for the pinned targets, and `lemma-jit` loads them and calls
+their functions (see [ADR 0010](docs/adr/0010-jit-object-loading-and-call-contract.md)). Lemma
+source is not compiled yet: the parser, the verifier and the lowering come next. Z3 is wired in,
+checked by a linking test.
 
 ## Development
 

@@ -26,7 +26,7 @@ The CPU is not programmed, it is **driven**. Lemma therefore makes every lever e
 - 128 KB L1d per P-core, 12 MB L2 shared per cluster.
 - **128-byte** cache lines (not 64 as on x86): alignments and tiles account for this.
 - macOS offers no strict core affinity: a P-core is requested through QoS (`QOS_CLASS_USER_INTERACTIVE`), without guarantee.
-- JIT memory: `MAP_JIT` and `pthread_jit_write_protect_np()`, W^X rule.
+- JIT memory: LLVM's default JITLink memory manager maps code read-write, then read-execute by `mprotect`, never both at once (W^X). It does not use `MAP_JIT`, so it runs in an unsigned binary but not under the Hardened Runtime of a signed release, which needs a `MAP_JIT` memory manager with `pthread_jit_write_protect_np()` ([ADR 0010](adr/0010-jit-object-loading-and-call-contract.md)).
 - PMU counters: only through private APIs (`kperf`) or Instruments. Otherwise, measure time (`mach_absolute_time`).
 
 ### Other targets
@@ -34,7 +34,13 @@ The CPU is not programmed, it is **driven**. Lemma therefore makes every lever e
 Targets come in three tiers ([ADR 0003](adr/0003-targets.md)): Apple AArch64 and x86-64
 (`x86-64-v3`, AVX2 and FMA, so `f32x8` is native) in tier 1; AArch64 Linux and RISC-V in tier 2,
 tested for correctness only; Cortex-M4F and WebAssembly (`simd128`) in tier 3. Each target has a
-pinned CPU, never `native`.
+pinned CPU, never `native`, defined once in `lemma-codegen` and used both for the final binary and
+by the JIT, which loads the same objects. The JIT runs only for the host's pinned target, and
+refuses an object whose header names another architecture or format. An object's CPU is not in
+its header, so the JIT relies on its objects coming from `emit_object` (or a trusted producer):
+one emitted for another CPU of the same architecture loads and may fault when called. Objects
+loaded by the JIT can call any symbol of the host process, as LLJIT links them by default
+([ADR 0010](adr/0010-jit-object-loading-and-call-contract.md)).
 
 Proofs are the same on every tier. What changes per target is checked per target: index and extent
 arithmetic must fit the pointer width (32 bits on Cortex-M and wasm32), vector types must fit the
