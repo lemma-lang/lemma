@@ -1,0 +1,12 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"foreign-keyword","class":"syntax","message":"`effects` is another language's keyword; write `eff`","span":{"file":"clause_foreign_word_out_of_place.lm","start":{"byte":33,"line":3,"column":3},"end":{"byte":40,"line":3,"column":10}},"repair":[{"span":{"file":"clause_foreign_word_out_of_place.lm","start":{"byte":33,"line":3,"column":3},"end":{"byte":40,"line":3,"column":10}},"replacement":"eff"}]}
+
+error[foreign-keyword]: `effects` is another language's keyword; write `eff`
+ --> clause_foreign_word_out_of_place.lm:3:3
+  |
+3 |   effects pure
+  |   ^^^^^^^
+  = repair: replace clause_foreign_word_out_of_place.lm:3:3-3:10 with "eff"

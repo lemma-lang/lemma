@@ -1,0 +1,68 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"foreign-keyword","class":"syntax","message":"`function` is another language's keyword; write `fn`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":0,"line":1,"column":1},"end":{"byte":8,"line":1,"column":9}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":0,"line":1,"column":1},"end":{"byte":8,"line":1,"column":9}},"replacement":"fn"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`effects` is another language's keyword; write `eff`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":28,"line":2,"column":3},"end":{"byte":35,"line":2,"column":10}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":28,"line":2,"column":3},"end":{"byte":35,"line":2,"column":10}},"replacement":"eff"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`requires` is another language's keyword; write `req`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":43,"line":3,"column":3},"end":{"byte":51,"line":3,"column":11}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":43,"line":3,"column":3},"end":{"byte":51,"line":3,"column":11}},"replacement":"req"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`ensures` is another language's keyword; write `ens`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":60,"line":4,"column":3},"end":{"byte":67,"line":4,"column":10}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":60,"line":4,"column":3},"end":{"byte":67,"line":4,"column":10}},"replacement":"ens"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`var` is another language's keyword; write `let`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":117,"line":8,"column":5},"end":{"byte":120,"line":8,"column":8}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":117,"line":8,"column":5},"end":{"byte":120,"line":8,"column":8}},"replacement":"let"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`const` is another language's keyword; write `let`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":136,"line":9,"column":5},"end":{"byte":141,"line":9,"column":10}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":136,"line":9,"column":5},"end":{"byte":141,"line":9,"column":10}},"replacement":"let"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`ret` is another language's keyword; write `return`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":157,"line":10,"column":5},"end":{"byte":160,"line":10,"column":8}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":157,"line":10,"column":5},"end":{"byte":160,"line":10,"column":8}},"replacement":"return"}]}
+{"kind":"foreign-keyword","class":"syntax","message":"`def` is another language's keyword; write `fn`","span":{"file":"foreign_keyword_repaired.lm","start":{"byte":174,"line":12,"column":8},"end":{"byte":177,"line":12,"column":11}},"repair":[{"span":{"file":"foreign_keyword_repaired.lm","start":{"byte":174,"line":12,"column":8},"end":{"byte":177,"line":12,"column":11}},"replacement":"fn"}]}
+
+error[foreign-keyword]: `function` is another language's keyword; write `fn`
+ --> foreign_keyword_repaired.lm:1:1
+  |
+1 | function f(n: u64) -> u64
+  | ^^^^^^^^
+  = repair: replace foreign_keyword_repaired.lm:1:1-1:9 with "fn"
+
+error[foreign-keyword]: `effects` is another language's keyword; write `eff`
+ --> foreign_keyword_repaired.lm:2:3
+  |
+2 |   effects pure
+  |   ^^^^^^^
+  = repair: replace foreign_keyword_repaired.lm:2:3-2:10 with "eff"
+
+error[foreign-keyword]: `requires` is another language's keyword; write `req`
+ --> foreign_keyword_repaired.lm:3:3
+  |
+3 |   requires n > 0
+  |   ^^^^^^^^
+  = repair: replace foreign_keyword_repaired.lm:3:3-3:11 with "req"
+
+error[foreign-keyword]: `ensures` is another language's keyword; write `ens`
+ --> foreign_keyword_repaired.lm:4:3
+  |
+4 |   ensures result > 0
+  |   ^^^^^^^
+  = repair: replace foreign_keyword_repaired.lm:4:3-4:10 with "ens"
+
+error[foreign-keyword]: `var` is another language's keyword; write `let`
+ --> foreign_keyword_repaired.lm:8:5
+  |
+8 |     var m: u64 = n
+  |     ^^^
+  = repair: replace foreign_keyword_repaired.lm:8:5-8:8 with "let"
+
+error[foreign-keyword]: `const` is another language's keyword; write `let`
+ --> foreign_keyword_repaired.lm:9:5
+  |
+9 |     const k: u64 = m
+  |     ^^^^^
+  = repair: replace foreign_keyword_repaired.lm:9:5-9:10 with "let"
+
+error[foreign-keyword]: `ret` is another language's keyword; write `return`
+  --> foreign_keyword_repaired.lm:10:5
+   |
+10 |     ret k
+   |     ^^^
+   = repair: replace foreign_keyword_repaired.lm:10:5-10:8 with "return"
+
+error[foreign-keyword]: `def` is another language's keyword; write `fn`
+  --> foreign_keyword_repaired.lm:12:8
+   |
+12 | export def g() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+   |        ^^^
+   = repair: replace foreign_keyword_repaired.lm:12:8-12:11 with "fn"

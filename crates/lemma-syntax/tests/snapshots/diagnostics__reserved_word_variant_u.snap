@@ -1,0 +1,18 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"reserved-word","class":"syntax","message":"`in` is reserved and cannot be used as a name","span":{"file":"reserved_word_variant_u.lm","start":{"byte":5,"line":1,"column":6},"end":{"byte":7,"line":1,"column":8}}}
+{"kind":"reserved-word","class":"syntax","message":"`sum` is reserved and cannot be used as a name","span":{"file":"reserved_word_variant_u.lm","start":{"byte":130,"line":2,"column":62},"end":{"byte":133,"line":2,"column":65}}}
+
+error[reserved-word]: `in` is reserved and cannot be used as a name
+ --> reserved_word_variant_u.lm:1:6
+  |
+1 | fn f(in: u64) -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  |      ^^
+
+error[reserved-word]: `sum` is reserved and cannot be used as a name
+ --> reserved_word_variant_u.lm:2:62
+  |
+2 | fn k(n: u64) -> u64 eff pure spec n equiv allow() impl { let sum: u64 = n return n }
+  |                                                              ^^^

@@ -1,0 +1,19 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"assignment","class":"syntax","message":"a statement cannot begin with the name `abc`; a value is defined once, by `let`, a carry or `next`","span":{"file":"zero_width_space_in_assigned_name.lm","start":{"byte":69,"line":6,"column":5},"end":{"byte":75,"line":6,"column":9}}}
+{"kind":"lookalike","class":"syntax","message":"U+200B is a lookalike of whitespace; delete it","span":{"file":"zero_width_space_in_assigned_name.lm","start":{"byte":69,"line":6,"column":5},"end":{"byte":75,"line":6,"column":9}},"repair":[{"span":{"file":"zero_width_space_in_assigned_name.lm","start":{"byte":71,"line":6,"column":7},"end":{"byte":74,"line":6,"column":8}},"replacement":""}]}
+
+error[assignment]: a statement cannot begin with the name `abc`; a value is defined once, by `let`, a carry or `next`
+ --> zero_width_space_in_assigned_name.lm:6:5
+  |
+6 |     ab​c = n
+  |     ^^^^
+
+error[lookalike]: U+200B is a lookalike of whitespace; delete it
+ --> zero_width_space_in_assigned_name.lm:6:5
+  |
+6 |     ab​c = n
+  |     ^^^^
+  = repair: replace zero_width_space_in_assigned_name.lm:6:7-6:8 with ""

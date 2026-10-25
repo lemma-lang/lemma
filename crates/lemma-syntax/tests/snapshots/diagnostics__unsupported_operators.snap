@@ -1,0 +1,18 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"unsupported-operator","class":"syntax","message":"`|` is not an operator of the language","span":{"file":"unsupported_operators.lm","start":{"byte":36,"line":1,"column":37},"end":{"byte":37,"line":1,"column":38}}}
+{"kind":"unsupported-operator","class":"syntax","message":"`&` is not a binary operator of the language","span":{"file":"unsupported_operators.lm","start":{"byte":108,"line":2,"column":37},"end":{"byte":109,"line":2,"column":38}}}
+
+error[unsupported-operator]: `|` is not an operator of the language
+ --> unsupported_operators.lm:1:37
+  |
+1 | fn f(n: u64) -> u64 eff pure spec n | 1 equiv allow() impl { return n }
+  |                                     ^
+
+error[unsupported-operator]: `&` is not a binary operator of the language
+ --> unsupported_operators.lm:2:37
+  |
+2 | fn g(n: u64) -> u64 eff pure spec n & 1 equiv allow() impl { return n }
+  |                                     ^

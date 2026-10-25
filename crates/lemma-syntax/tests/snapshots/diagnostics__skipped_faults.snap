@@ -1,0 +1,19 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"reserved-word","class":"syntax","message":"`loop` is reserved and cannot be used as a name","span":{"file":"skipped_faults.lm","start":{"byte":5,"line":1,"column":6},"end":{"byte":9,"line":1,"column":10}}}
+{"kind":"lookalike","class":"syntax","message":"U+00A0 is a lookalike of whitespace; use a space","span":{"file":"skipped_faults.lm","start":{"byte":76,"line":1,"column":75},"end":{"byte":78,"line":1,"column":76}},"repair":[{"span":{"file":"skipped_faults.lm","start":{"byte":76,"line":1,"column":75},"end":{"byte":78,"line":1,"column":76}},"replacement":" "}]}
+
+error[reserved-word]: `loop` is reserved and cannot be used as a name
+ --> skipped_faults.lm:1:6
+  |
+1 | fn f(loop: u64) -> u64 eff pure spec $ equiv allow() impl { return n ≥ 1 } 
+  |      ^^^^
+
+error[lookalike]: U+00A0 is a lookalike of whitespace; use a space
+ --> skipped_faults.lm:1:75
+  |
+1 | fn f(loop: u64) -> u64 eff pure spec $ equiv allow() impl { return n ≥ 1 } 
+  |                                                                           ^
+  = repair: replace skipped_faults.lm:1:75-1:76 with " "

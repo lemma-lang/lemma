@@ -1,0 +1,12 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"assignment-in-expression","class":"syntax","message":"`=` is not a comparison; equality is `==`","span":{"file":"assignment_in_expression.lm","start":{"byte":44,"line":3,"column":14},"end":{"byte":45,"line":3,"column":15}},"repair":[{"span":{"file":"assignment_in_expression.lm","start":{"byte":44,"line":3,"column":14},"end":{"byte":45,"line":3,"column":15}},"replacement":"=="}]}
+
+error[assignment-in-expression]: `=` is not a comparison; equality is `==`
+ --> assignment_in_expression.lm:3:14
+  |
+3 |   req n % 16 = 0
+  |              ^
+  = repair: replace assignment_in_expression.lm:3:14-3:15 with "=="

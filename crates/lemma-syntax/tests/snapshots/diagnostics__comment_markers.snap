@@ -1,0 +1,36 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"semicolon","class":"syntax","message":"`;` is not part of the language; comments start with `//`","span":{"file":"comment_markers.lm","start":{"byte":0,"line":1,"column":1},"end":{"byte":1,"line":1,"column":2}},"repair":[{"span":{"file":"comment_markers.lm","start":{"byte":0,"line":1,"column":1},"end":{"byte":1,"line":1,"column":2}},"replacement":"//"}]}
+{"kind":"hash-comment","class":"syntax","message":"`#` is not part of the language; comments start with `//`","span":{"file":"comment_markers.lm","start":{"byte":38,"line":4,"column":1},"end":{"byte":39,"line":4,"column":2}},"repair":[{"span":{"file":"comment_markers.lm","start":{"byte":38,"line":4,"column":1},"end":{"byte":39,"line":4,"column":2}},"replacement":"//"}]}
+{"kind":"block-comment","class":"syntax","message":"a block comment is not part of the language; use `//`","span":{"file":"comment_markers.lm","start":{"byte":55,"line":6,"column":3},"end":{"byte":66,"line":6,"column":14}},"repair":[{"span":{"file":"comment_markers.lm","start":{"byte":55,"line":6,"column":3},"end":{"byte":66,"line":6,"column":14}},"replacement":"// exact "}]}
+{"kind":"semicolon","class":"syntax","message":"`;` ends no statement; lines end at the line break","span":{"file":"comment_markers.lm","start":{"byte":104,"line":9,"column":13},"end":{"byte":105,"line":9,"column":14}},"repair":[{"span":{"file":"comment_markers.lm","start":{"byte":104,"line":9,"column":13},"end":{"byte":105,"line":9,"column":14}},"replacement":""}]}
+
+error[semicolon]: `;` is not part of the language; comments start with `//`
+ --> comment_markers.lm:1:1
+  |
+1 | ; note
+  | ^
+  = repair: replace comment_markers.lm:1:1-1:2 with "//"
+
+error[hash-comment]: `#` is not part of the language; comments start with `//`
+ --> comment_markers.lm:4:1
+  |
+4 | # why
+  | ^
+  = repair: replace comment_markers.lm:4:1-4:2 with "//"
+
+error[block-comment]: a block comment is not part of the language; use `//`
+ --> comment_markers.lm:6:3
+  |
+6 |   /* exact */
+  |   ^^^^^^^^^^^
+  = repair: replace comment_markers.lm:6:3-6:14 with "// exact "
+
+error[semicolon]: `;` ends no statement; lines end at the line break
+ --> comment_markers.lm:9:13
+  |
+9 |     return n;
+  |             ^
+  = repair: replace comment_markers.lm:9:13-9:14 with ""

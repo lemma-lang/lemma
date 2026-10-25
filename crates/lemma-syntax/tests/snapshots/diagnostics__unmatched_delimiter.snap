@@ -1,0 +1,25 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"unmatched-delimiter","class":"syntax","message":"`)` closes nothing","span":{"file":"unmatched_delimiter.lm","start":{"byte":35,"line":1,"column":36},"end":{"byte":36,"line":1,"column":37}}}
+{"kind":"unmatched-delimiter","class":"syntax","message":"`]` does not close the open `(`","span":{"file":"unmatched_delimiter.lm","start":{"byte":136,"line":2,"column":68},"end":{"byte":137,"line":2,"column":69}}}
+{"kind":"unmatched-delimiter","class":"syntax","message":"`}` closes nothing","span":{"file":"unmatched_delimiter.lm","start":{"byte":202,"line":4,"column":1},"end":{"byte":203,"line":4,"column":2}}}
+
+error[unmatched-delimiter]: `)` closes nothing
+ --> unmatched_delimiter.lm:1:36
+  |
+1 | fn f(n: u64) -> u64 eff pure spec n) equiv allow() impl { return n }
+  |                                    ^
+
+error[unmatched-delimiter]: `]` does not close the open `(`
+ --> unmatched_delimiter.lm:2:68
+  |
+2 | fn k(n: u64) -> u64 eff pure spec n equiv allow() impl { return f(n] }
+  |                                                                    ^
+
+error[unmatched-delimiter]: `}` closes nothing
+ --> unmatched_delimiter.lm:4:1
+  |
+4 | }
+  | ^

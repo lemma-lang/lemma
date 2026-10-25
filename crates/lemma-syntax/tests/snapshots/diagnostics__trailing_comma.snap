@@ -1,0 +1,36 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"trailing-comma","class":"syntax","message":"a list takes no trailing comma","span":{"file":"trailing_comma.lm","start":{"byte":11,"line":1,"column":12},"end":{"byte":12,"line":1,"column":13}},"repair":[{"span":{"file":"trailing_comma.lm","start":{"byte":11,"line":1,"column":12},"end":{"byte":12,"line":1,"column":13}},"replacement":""}]}
+{"kind":"trailing-comma","class":"syntax","message":"a list takes no trailing comma","span":{"file":"trailing_comma.lm","start":{"byte":42,"line":3,"column":11},"end":{"byte":43,"line":3,"column":12}},"repair":[{"span":{"file":"trailing_comma.lm","start":{"byte":42,"line":3,"column":11},"end":{"byte":43,"line":3,"column":12}},"replacement":""}]}
+{"kind":"trailing-comma","class":"syntax","message":"a list takes no trailing comma","span":{"file":"trailing_comma.lm","start":{"byte":69,"line":4,"column":25},"end":{"byte":70,"line":4,"column":26}},"repair":[{"span":{"file":"trailing_comma.lm","start":{"byte":69,"line":4,"column":25},"end":{"byte":70,"line":4,"column":26}},"replacement":""}]}
+{"kind":"trailing-comma","class":"syntax","message":"a list takes no trailing comma","span":{"file":"trailing_comma.lm","start":{"byte":129,"line":6,"column":49},"end":{"byte":130,"line":6,"column":50}},"repair":[{"span":{"file":"trailing_comma.lm","start":{"byte":129,"line":6,"column":49},"end":{"byte":130,"line":6,"column":50}},"replacement":""}]}
+
+error[trailing-comma]: a list takes no trailing comma
+ --> trailing_comma.lm:1:12
+  |
+1 | fn f(n: u64,) -> u64
+  |            ^
+  = repair: replace trailing_comma.lm:1:12-1:13 with ""
+
+error[trailing-comma]: a list takes no trailing comma
+ --> trailing_comma.lm:3:11
+  |
+3 |   spec g(n,)
+  |           ^
+  = repair: replace trailing_comma.lm:3:11-3:12 with ""
+
+error[trailing-comma]: a list takes no trailing comma
+ --> trailing_comma.lm:4:25
+  |
+4 |   equiv allow(fp_reassoc,)
+  |                         ^
+  = repair: replace trailing_comma.lm:4:25-4:26 with ""
+
+error[trailing-comma]: a list takes no trailing comma
+ --> trailing_comma.lm:6:49
+  |
+6 |     loop i: u64 in 0..<n step 1 carry(s: u64 = 0,) {
+  |                                                 ^
+  = repair: replace trailing_comma.lm:6:49-6:50 with ""

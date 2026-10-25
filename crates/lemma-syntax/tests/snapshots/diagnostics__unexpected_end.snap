@@ -1,0 +1,11 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"unexpected-end","class":"syntax","message":"unexpected end of input, expected a type","span":{"file":"unexpected_end.lm","start":{"byte":16,"line":2,"column":1},"end":{"byte":16,"line":2,"column":1}}}
+
+error[unexpected-end]: unexpected end of input, expected a type
+ --> unexpected_end.lm:2:1
+  |
+2 |
+  | ^

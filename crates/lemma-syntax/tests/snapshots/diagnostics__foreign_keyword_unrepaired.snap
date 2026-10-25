@@ -1,0 +1,25 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"foreign-keyword","class":"syntax","message":"`pub` is another language's keyword, not part of Lemma","span":{"file":"foreign_keyword_unrepaired.lm","start":{"byte":0,"line":1,"column":1},"end":{"byte":3,"line":1,"column":4}}}
+{"kind":"foreign-keyword","class":"syntax","message":"`if` is another language's keyword, not part of Lemma","span":{"file":"foreign_keyword_unrepaired.lm","start":{"byte":123,"line":2,"column":58},"end":{"byte":125,"line":2,"column":60}}}
+{"kind":"foreign-keyword","class":"syntax","message":"`mut` is another language's keyword, not part of Lemma","span":{"file":"foreign_keyword_unrepaired.lm","start":{"byte":194,"line":3,"column":56},"end":{"byte":197,"line":3,"column":59}}}
+
+error[foreign-keyword]: `pub` is another language's keyword, not part of Lemma
+ --> foreign_keyword_unrepaired.lm:1:1
+  |
+1 | pub fn a() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+  | ^^^
+
+error[foreign-keyword]: `if` is another language's keyword, not part of Lemma
+ --> foreign_keyword_unrepaired.lm:2:58
+  |
+2 | fn b(n: u64) -> u64 eff pure spec n equiv allow() impl { if n return n }
+  |                                                          ^^
+
+error[foreign-keyword]: `mut` is another language's keyword, not part of Lemma
+ --> foreign_keyword_unrepaired.lm:3:56
+  |
+3 | fn c() -> u64 eff pure spec 0 equiv allow() impl { let mut x: u64 = 0 return x }
+  |                                                        ^^^

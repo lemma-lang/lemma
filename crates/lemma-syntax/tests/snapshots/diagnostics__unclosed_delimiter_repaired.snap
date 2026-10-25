@@ -1,0 +1,28 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"unclosed-delimiter","class":"syntax","message":"`(` is not closed before `req`; insert `)`","span":{"file":"unclosed_delimiter_repaired.lm","start":{"byte":59,"line":3,"column":10},"end":{"byte":59,"line":3,"column":10}},"repair":[{"span":{"file":"unclosed_delimiter_repaired.lm","start":{"byte":59,"line":3,"column":10},"end":{"byte":59,"line":3,"column":10}},"replacement":")"}]}
+{"kind":"unclosed-delimiter","class":"syntax","message":"`[` is not closed before `spec`; insert `]`","span":{"file":"unclosed_delimiter_repaired.lm","start":{"byte":69,"line":4,"column":10},"end":{"byte":69,"line":4,"column":10}},"repair":[{"span":{"file":"unclosed_delimiter_repaired.lm","start":{"byte":69,"line":4,"column":10},"end":{"byte":69,"line":4,"column":10}},"replacement":"]"}]}
+{"kind":"unclosed-delimiter","class":"syntax","message":"`(` is not closed before `return`; insert `)`","span":{"file":"unclosed_delimiter_repaired.lm","start":{"byte":124,"line":8,"column":21},"end":{"byte":124,"line":8,"column":21}},"repair":[{"span":{"file":"unclosed_delimiter_repaired.lm","start":{"byte":124,"line":8,"column":21},"end":{"byte":124,"line":8,"column":21}},"replacement":")"}]}
+
+error[unclosed-delimiter]: `(` is not closed before `req`; insert `)`
+ --> unclosed_delimiter_repaired.lm:3:10
+  |
+3 |   req g(n
+  |          ^
+  = repair: replace unclosed_delimiter_repaired.lm:3:10-3:10 with ")"
+
+error[unclosed-delimiter]: `[` is not closed before `spec`; insert `]`
+ --> unclosed_delimiter_repaired.lm:4:10
+  |
+4 |   req a[n
+  |          ^
+  = repair: replace unclosed_delimiter_repaired.lm:4:10-4:10 with "]"
+
+error[unclosed-delimiter]: `(` is not closed before `return`; insert `)`
+ --> unclosed_delimiter_repaired.lm:8:21
+  |
+8 |     let m: u64 = g(n
+  |                     ^
+  = repair: replace unclosed_delimiter_repaired.lm:8:21-8:21 with ")"

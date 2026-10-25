@@ -1,0 +1,19 @@
+---
+source: crates/lemma-syntax/tests/diagnostics.rs
+expression: "renderings(file, variant)?"
+---
+{"kind":"unclosed-delimiter","class":"syntax","message":"`(` is not closed before end of input; insert `)`","span":{"file":"unclosed_delimiter_at_end.lm","start":{"byte":11,"line":1,"column":12},"end":{"byte":11,"line":1,"column":12}},"repair":[{"span":{"file":"unclosed_delimiter_at_end.lm","start":{"byte":11,"line":1,"column":12},"end":{"byte":11,"line":1,"column":12}},"replacement":")"}]}
+{"kind":"unexpected-end","class":"syntax","message":"unexpected end of input, expected `->`","span":{"file":"unclosed_delimiter_at_end.lm","start":{"byte":12,"line":2,"column":1},"end":{"byte":12,"line":2,"column":1}}}
+
+error[unclosed-delimiter]: `(` is not closed before end of input; insert `)`
+ --> unclosed_delimiter_at_end.lm:1:12
+  |
+1 | fn f(n: u64
+  |            ^
+  = repair: replace unclosed_delimiter_at_end.lm:1:12-1:12 with ")"
+
+error[unexpected-end]: unexpected end of input, expected `->`
+ --> unclosed_delimiter_at_end.lm:2:1
+  |
+2 |
+  | ^
