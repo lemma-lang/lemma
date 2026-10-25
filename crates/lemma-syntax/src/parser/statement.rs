@@ -1,5 +1,7 @@
 //! Blocks, statements and binders.
 
+use super::foreign::{Context, Foreign};
+use super::nesting::Delimiter;
 use super::{ParseResult, Parser, keyword, token};
 use crate::ast::{Binder, Block, Carry, Statement, StatementKind};
 use crate::token::{Keyword, TokenKind};
@@ -7,16 +9,19 @@ use crate::token::{Keyword, TokenKind};
 impl Parser<'_> {
     pub(super) fn parse_block(&mut self) -> ParseResult<Block> {
         let start = self.start();
-        self.consume(TokenKind::LeftBrace)?;
-        let mut statements = Vec::new();
-        while !self.at(&TokenKind::RightBrace) {
-            statements.push(self.parse_statement()?);
-        }
-        self.bump()?;
+        let statements = self.delimited(Delimiter::Brace, &[], Self::parse_statements)?;
         Ok(Block {
             statements,
             range: self.range_from(start),
         })
+    }
+
+    fn parse_statements(&mut self) -> ParseResult<Vec<Statement>> {
+        let mut statements = Vec::new();
+        while !self.at(&TokenKind::RightBrace) {
+            statements.push(self.parse_statement()?);
+        }
+        Ok(statements)
     }
 
     pub(super) fn parse_binder(&mut self) -> ParseResult<Binder> {
@@ -33,11 +38,29 @@ impl Parser<'_> {
 
     fn parse_statement(&mut self) -> ParseResult<Statement> {
         let start = self.start();
-        let kind = match self.peek(0) {
-            TokenKind::Keyword(Keyword::Let) => self.parse_let()?,
-            TokenKind::Keyword(Keyword::Loop) => self.parse_loop()?,
-            TokenKind::Keyword(Keyword::Next) => self.parse_next()?,
-            TokenKind::Keyword(Keyword::Return) => self.parse_return()?,
+        let kind = match self.consume_statement_keyword()? {
+            Keyword::Let => self.parse_let()?,
+            Keyword::Loop => self.parse_loop()?,
+            Keyword::Next => self.parse_next()?,
+            _ => self.parse_return()?,
+        };
+        Ok(Statement {
+            kind,
+            range: self.range_from(start),
+        })
+    }
+
+    /// Consumes the keyword that begins a statement, or another language's word for one; a
+    /// statement that begins with any other name is an `assignment`.
+    fn consume_statement_keyword(&mut self) -> ParseResult<Keyword> {
+        if let Some(keyword) = self.consume_foreign(Context::Statement)? {
+            return Ok(keyword);
+        }
+        let found = match self.peek(0) {
+            TokenKind::Keyword(
+                found @ (Keyword::Let | Keyword::Loop | Keyword::Next | Keyword::Return),
+            ) => *found,
+            TokenKind::Name(_) => return Err(self.assignment()),
             _ => {
                 let expected = [
                     token(keyword(Keyword::Let)),
@@ -49,14 +72,14 @@ impl Parser<'_> {
                 return Err(self.fail(&expected));
             }
         };
-        Ok(Statement {
-            kind,
-            range: self.range_from(start),
-        })
+        self.bump()?;
+        Ok(found)
     }
 
     fn parse_let(&mut self) -> ParseResult<StatementKind> {
-        self.bump()?;
+        if self.foreign(Context::AfterLet) == Some(Foreign::Reject) {
+            return Err(self.reject_foreign());
+        }
         let binder = self.parse_binder()?;
         self.consume(TokenKind::Equals)?;
         let value = self.parse_expression()?;
@@ -64,13 +87,11 @@ impl Parser<'_> {
     }
 
     fn parse_loop(&mut self) -> ParseResult<StatementKind> {
-        self.bump()?;
         let (index, low, high) = self.parse_range_head()?;
         self.consume_keyword(Keyword::Step)?;
         let step = self.parse_integer()?;
         self.consume_keyword(Keyword::Carry)?;
-        self.consume(TokenKind::LeftParen)?;
-        let carries = self.parse_list(TokenKind::RightParen, false, Self::parse_carry)?;
+        let carries = self.delimited_list(Delimiter::Parenthesis, false, Self::parse_carry)?;
         let body = self.parse_block()?;
         Ok(StatementKind::Loop {
             index,
@@ -95,7 +116,6 @@ impl Parser<'_> {
     }
 
     fn parse_next(&mut self) -> ParseResult<StatementKind> {
-        self.bump()?;
         let name = self.parse_name()?;
         self.consume(TokenKind::Equals)?;
         let value = self.parse_expression()?;
@@ -103,7 +123,6 @@ impl Parser<'_> {
     }
 
     fn parse_return(&mut self) -> ParseResult<StatementKind> {
-        self.bump()?;
         let value = self.parse_expression()?;
         Ok(StatementKind::Return { value })
     }

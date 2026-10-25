@@ -1,5 +1,6 @@
 //! Parameters and the types of a signature.
 
+use super::nesting::Delimiter;
 use super::{
     A_NAME, A_TYPE, AN_ALIGNMENT, AN_INTEGER_LITERAL, ParseResult, Parser, keyword, token,
 };
@@ -87,9 +88,7 @@ impl Parser<'_> {
         let start = self.start();
         self.consume(TokenKind::Ampersand)?;
         let (element, element_bound) = self.parse_element()?;
-        self.consume(TokenKind::LeftBracket)?;
-        let extent = self.parse_limit()?;
-        self.consume(TokenKind::RightBracket)?;
+        let extent = self.delimited(Delimiter::Bracket, &[], Self::parse_limit)?;
         let alignment = self.parse_alignment()?;
         let mode = self.parse_mode()?;
         Ok(ReferenceType {
@@ -103,16 +102,19 @@ impl Parser<'_> {
     }
 
     fn parse_element(&mut self) -> ParseResult<(ScalarType, Option<Bound>)> {
-        if self.eat(&TokenKind::LeftParen)?.is_none() {
+        if !self.at(&TokenKind::LeftParen) {
             return Ok((self.parse_scalar_type()?, None));
         }
+        self.delimited(Delimiter::Parenthesis, &[], Self::parse_bounded_element)
+    }
+
+    fn parse_bounded_element(&mut self) -> ParseResult<(ScalarType, Option<Bound>)> {
         let element = self.parse_scalar_type()?;
         if !matches!(self.peek(0), TokenKind::Less | TokenKind::LessEqual) {
             let expected = [token(TokenKind::Less), token(TokenKind::LessEqual)];
             return Err(self.fail(&expected));
         }
         let bound = self.parse_bound()?;
-        self.consume(TokenKind::RightParen)?;
         Ok((element, Some(bound)))
     }
 

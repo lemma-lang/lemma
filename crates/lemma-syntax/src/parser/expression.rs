@@ -1,5 +1,8 @@
 //! Expressions: one loop per precedence level, recursion only where a level opens.
 
+use lemma_diagnostics::Kind;
+
+use super::nesting::Delimiter;
 use super::{AN_EXPRESSION, ParseResult, Parser};
 use crate::ast::{BinaryOperator, Binder, Expression, ExpressionKind, UnaryOperator};
 use crate::token::{C1Symbol, Keyword, TextRange, TokenKind, VectorType};
@@ -94,20 +97,45 @@ impl<'a> Parser<'a> {
 
     fn parse_comparison(&mut self) -> ParseResult<Expression> {
         let left = self.parse_additive()?;
-        let Some(operator) = comparison_operator(self.peek(0)) else {
+        let Some(operator) = self.consume_comparison_operator()? else {
             return Ok(left);
         };
-        self.bump()?;
         let right = self.parse_additive()?;
         Ok(binary(operator, left, right))
+    }
+
+    /// Consumes a comparison operator, if one is next; `=` reads as `==`, reported as an
+    /// `assignment-in-expression` with that repair.
+    fn consume_comparison_operator(&mut self) -> ParseResult<Option<BinaryOperator>> {
+        if self.at(&TokenKind::Equals) {
+            let range = self.bump()?;
+            let message = "`=` is not a comparison; equality is `==`".to_string();
+            let edit = (range, "==".to_string());
+            let record = self.record(Kind::AssignmentInExpression, message, range, &[edit]);
+            self.diagnostics.push(record);
+            return Ok(Some(BinaryOperator::Equal));
+        }
+        let Some(operator) = comparison_operator(self.peek(0)) else {
+            return Ok(None);
+        };
+        self.bump()?;
+        Ok(Some(operator))
     }
 
     pub(super) fn parse_additive(&mut self) -> ParseResult<Expression> {
         self.parse_chain(additive_operator, Self::parse_multiplicative)
     }
 
+    /// The innermost chain; a `&` after one of its operands is a binary `&`, which the language
+    /// does not have.
     fn parse_multiplicative(&mut self) -> ParseResult<Expression> {
-        self.parse_chain(multiplicative_operator, Self::parse_unary)
+        let chain = self.parse_chain(multiplicative_operator, Self::parse_unary)?;
+        if self.at(&TokenKind::Ampersand) {
+            let range = self.current().range;
+            let message = "`&` is not a binary operator of the language".to_string();
+            return Err(self.stop(Kind::UnsupportedOperator, message, range));
+        }
+        Ok(chain)
     }
 
     fn parse_unary(&mut self) -> ParseResult<Expression> {
@@ -117,8 +145,7 @@ impl<'a> Parser<'a> {
             TokenKind::Bang => (UnaryOperator::Not, Self::parse_primary),
             _ => return self.parse_primary(),
         };
-        self.bump()?;
-        let operand = Box::new(parse_operand(self)?);
+        let operand = Box::new(self.unary_level(parse_operand)?);
         Ok(self.node(start, ExpressionKind::Unary { operator, operand }))
     }
 
@@ -153,13 +180,13 @@ impl<'a> Parser<'a> {
         let name = self.parse_name()?;
         let kind = match self.peek(0) {
             TokenKind::LeftBracket => {
-                self.bump()?;
-                let index = Box::new(self.parse_expression()?);
-                self.consume(TokenKind::RightBracket)?;
-                ExpressionKind::Index { base: name, index }
+                let index = self.delimited(Delimiter::Bracket, &[], Self::parse_expression)?;
+                ExpressionKind::Index {
+                    base: name,
+                    index: Box::new(index),
+                }
             }
             TokenKind::LeftParen => {
-                self.bump()?;
                 let arguments = self.parse_arguments()?;
                 ExpressionKind::Call {
                     callee: name,
@@ -172,7 +199,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_arguments(&mut self) -> ParseResult<Vec<Expression>> {
-        self.parse_list(TokenKind::RightParen, true, Self::parse_expression)
+        self.delimited_list(Delimiter::Parenthesis, true, Self::parse_expression)
     }
 
     fn parse_member(&mut self, vector: VectorType) -> ParseResult<Expression> {
@@ -180,7 +207,6 @@ impl<'a> Parser<'a> {
         self.bump()?;
         self.consume(TokenKind::Dot)?;
         let member = self.parse_name()?;
-        self.consume(TokenKind::LeftParen)?;
         let arguments = self.parse_arguments()?;
         let kind = ExpressionKind::Member {
             vector,
@@ -192,9 +218,7 @@ impl<'a> Parser<'a> {
 
     fn parse_parenthesized(&mut self) -> ParseResult<Expression> {
         let start = self.start();
-        self.bump()?;
-        let inner = self.parse_expression()?;
-        self.consume(TokenKind::RightParen)?;
+        let inner = self.delimited(Delimiter::Parenthesis, &[], Self::parse_expression)?;
         Ok(self.node(start, ExpressionKind::Paren(Box::new(inner))))
     }
 
@@ -211,12 +235,9 @@ impl<'a> Parser<'a> {
     fn parse_quantifier(&mut self, symbol: C1Symbol) -> ParseResult<Expression> {
         let start = self.start();
         self.consume_c1(symbol)?;
-        self.consume(TokenKind::LeftParen)?;
-        let (binder, low, high) = self.parse_range_head()?;
-        self.consume(TokenKind::RightParen)?;
-        self.consume(TokenKind::LeftBrace)?;
-        let body = Box::new(self.parse_expression()?);
-        self.consume(TokenKind::RightBrace)?;
+        let (binder, low, high) =
+            self.delimited(Delimiter::Parenthesis, &[], Self::parse_range_head)?;
+        let body = Box::new(self.delimited(Delimiter::Brace, &[], Self::parse_expression)?);
         let (low, high) = (Box::new(low), Box::new(high));
         let kind = match symbol {
             C1Symbol::Forall => ExpressionKind::Forall {

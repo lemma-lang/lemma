@@ -357,6 +357,20 @@ impl TokenKind {
         Some(spelling)
     }
 
+    /// Whether the token is a word the language reserves: a keyword, a type name or a C1 word or
+    /// symbol.
+    pub(crate) fn is_reserved(&self) -> bool {
+        matches!(
+            self,
+            Self::Keyword(_)
+                | Self::ScalarType(_)
+                | Self::VectorType(_)
+                | Self::Sum(_)
+                | Self::In(_)
+                | Self::Forall(_)
+        )
+    }
+
     /// The C1 symbol this token spells and the variant of its spelling.
     pub(crate) fn c1_symbol(&self) -> Option<(C1Symbol, C1Variant)> {
         match self {
