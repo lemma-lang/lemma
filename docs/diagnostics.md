@@ -324,3 +324,8 @@ decided there.
   their spelling, then the token classes in words (`a name`, `an integer literal`, `a type`) in
   alphabetical order, joined as `x`, `x or y`, `x, y or z`. For example: ``unexpected `]`, expected
   `)` or `,` ``.
+- `nesting-limit`: in the impl,
+  ``nesting exceeds the limit of 16 levels; bind an inner expression to a name with `let` ``; in
+  the signature or a contract clause, which have no `let`,
+  `nesting exceeds the limit of 16 levels`. The number is the limit in force (`docs/grammar.md`,
+  section 3, "Nesting depth"; ADR 0010).

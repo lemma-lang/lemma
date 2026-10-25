@@ -143,6 +143,9 @@ What a reader needs to read it:
 - Every binder carries its type. Ranges are half-open and spelled `lo..<hi`.
 - No separators: each clause and statement starts with a keyword; blocks are braces; layout means
   nothing. Comments are `//`.
+- Nesting stops at 16 levels, a provisional limit: each `(`, `[`, `{` and unary operator opens
+  one, and a binary chain such as `a + b + c` opens none. `dot` reaches 4, in its loads. Deeper
+  code binds an inner expression with `let` ([ADR 0010](adr/0010-nesting-limit.md)).
 - Arithmetic is infix in the spec and the impl alike, lane by lane on vectors. `fma(x, y, z)` is
   `x * y + z` with one rounding, the addend last as in C. `T.splat` and `T.load(a, i)` name the
   vector type they produce; `reduce_sum` adds a vector's lanes.

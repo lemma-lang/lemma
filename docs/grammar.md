@@ -3,7 +3,8 @@
 This is the grammar of the subset the prototype parses: enough for `dot`, and the base the subset's
 extensions build on. It follows every consequence of
 [ADR 0006](adr/0006-optimized-for-its-writer.md); the choices it makes beyond that ADR are recorded
-in [ADR 0008](adr/0008-prototype-grammar.md), and the C boundary it maps to in
+in [ADR 0008](adr/0008-prototype-grammar.md), its nesting limit in
+[ADR 0010](adr/0010-nesting-limit.md), and the C boundary it maps to in
 [ADR 0007](adr/0007-export-mapping-and-content-hash.md). It is provisional: the ADR that records
 ADR 0006's calibration freezes it.
 
@@ -305,6 +306,37 @@ section 7.
     loop, sum or quantifier index is already bounded by its range.
 11. A bound is `<` or `<=` followed by an integer literal or a name. `>`, `>=`, `==` or an
     arithmetic expression after the type are rejected (section 7).
+12. Nesting is at most 16 levels deep, counted as below.
+
+### Nesting depth
+
+The depth is counted on the tokens as written, so that a writer can compute it by reading its own
+text, and it does not depend on how the parser is implemented (ADR 0010).
+
+- A **level** is opened by each `(`, `[` and `{`, whatever it belongs to: a parameter list, a
+  call's argument list (`fma(`, `f32x4.load(`: one level, its `(`), `carry(`, `allow(`, the binder
+  list of a sum or a quantifier, a parenthesized expression or element type, an index, an extent,
+  a block, the body of a sum or a quantifier. The level closes at the matching `)`, `]` or `}`.
+- A level is also opened by each unary `-` and each `!`. It covers the operand and closes after
+  it: `-x` opens one level, `-(x)` two, `!(!c)` three.
+- Nothing else opens a level: no binary operator, however long its chain (`a + b + c`,
+  `a + b * c`, `x && y && z`); no clause, statement, `loop` or `let`; no recursion of the parser's
+  own, such as its precedence levels. Comments hold no tokens.
+- The **depth** of a level is the number of levels open once it has opened, itself included. The
+  depth is 0 between items. Levels that follow one another do not add up: in
+  `(c0 + c1) + (c2 + c3)` both parentheses have the same depth.
+- A delimiter that a repair inserts (section 7) opens or closes a level as if it were written,
+  since recovery parses as if the repair had been applied; a deleted one does not.
+
+**The limit is 16, provisionally** (ADR 0010). The first token, in source order, that opens a level
+of depth 17 is a `nesting-limit` diagnostic (section 7), whose span is that token alone; the parse
+of its function ends there.
+
+`dot` (section 1) reaches depth 4, in its loads: `impl {` is 1, the loop body's `{` 2, `fma(` 3,
+`f32x4.load(` 4, and the arguments `a` and `i + 4` sit at depth 4. Elsewhere it stays lower: the
+signature reaches 2 (`dot(`, then `[n]`), the spec 2 (the sum's body `{`, then `a[`; the sum's `(`
+has closed before it), the carries 3 (`impl {`, `carry(`, `f32x4.splat(`), and the `return` 3
+(`impl {`, `reduce_sum(`, then either parenthesis).
 
 ## 4. Meaning the parser and the checker rely on
 
@@ -545,6 +577,7 @@ only follows from an earlier one (P5).
 | `result-outside-ens` | `result` outside an `ens` clause | none |
 | `misplaced-export` | `export` not followed by `fn` | none |
 | `unexpected-end` | input ends inside a function | none |
+| `nesting-limit` | a token that opens a level of depth 17, counted as in section 3, "Nesting depth"; the span is that token | none: lowering the depth means binding an inner expression with `let`, under a name the compiler would have to invent |
 
 ### Kinds of the checker that concern names and bounds
 
@@ -570,4 +603,6 @@ automatically (ADR 0006): `bound-in-clause` only moves a bound to the place wher
 
 The C1 variant is a switch of the lexer: one variant active per run, the other's spellings
 rejected with `c1-other-variant` and its repair, during the calibration and, for the losing
-variant, after the freeze. No other choice of this grammar is calibrated.
+variant, after the freeze. No other choice of this grammar is calibrated. The nesting limit is not a
+calibration arm: its value is revisited by the ADR that freezes the grammar, from the number of
+`nesting-limit` records in the calibration runs (ADR 0010).
