@@ -141,6 +141,7 @@ fn a_symbol_with_a_nul_byte_is_a_lookup_error_naming_it() -> Result<(), Box<dyn 
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn a_symbol_at_address_zero_is_a_lookup_error_with_no_address() -> Result<(), Box<dyn Error>> {
     let mut jit = Jit::new(host()?)?;
@@ -153,6 +154,23 @@ fn a_symbol_at_address_zero_is_a_lookup_error_with_no_address() -> Result<(), Bo
     assert!(matches!(
         result,
         Err(JitError::Lookup { symbol, message }) if symbol == "zero" && message.contains("no address")
+    ));
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn an_absolute_symbol_is_not_a_definition_for_the_elf_linker() -> Result<(), Box<dyn Error>> {
+    let mut jit = Jit::new(host()?)?;
+    jit.add_object("absolute_zero", &absolute_zero_object()?)?;
+
+    // SAFETY: `zero` is an absolute symbol, not a function; the ELF linker does not define it, so
+    // the lookup fails and no function is returned.
+    let result = unsafe { jit.function::<Constant>("zero") };
+
+    assert!(matches!(
+        result,
+        Err(JitError::Lookup { symbol, .. }) if symbol == "zero"
     ));
     Ok(())
 }
