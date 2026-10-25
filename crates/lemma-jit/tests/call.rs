@@ -24,6 +24,16 @@ const ADD_THREE_CASES: [((i64, i64, i64), i64); 1] = [((1, 2, 3), 6)];
 const OBJECT_NAME: &str = "arithmetic";
 const TRUNCATED_LENGTH: usize = 64;
 
+const NOT_OBJECTS: [(&str, &[u8]); 2] = [("text", b"not an object"), ("empty", b"")];
+
+/// The two pinned targets that are not the host, whose objects this host's JIT must refuse.
+#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+const FOREIGN_TARGETS: (Target, Target) = (Target::X86_64Linux, Target::Aarch64Linux);
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+const FOREIGN_TARGETS: (Target, Target) = (Target::AppleAarch64, Target::Aarch64Linux);
+#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+const FOREIGN_TARGETS: (Target, Target) = (Target::AppleAarch64, Target::X86_64Linux);
+
 fn host() -> Result<Target, Box<dyn Error>> {
     Ok(Target::host().ok_or("the suite runs on a host with no pinned target")?)
 }
@@ -143,7 +153,7 @@ fn define_add_three<'context>(
     Ok(())
 }
 
-fn host_object() -> Result<Vec<u8>, Box<dyn Error>> {
+fn object_for(target: Target) -> Result<Vec<u8>, Box<dyn Error>> {
     let context = Context::create();
     let module = context.create_module(OBJECT_NAME);
     let builder = context.create_builder();
@@ -151,7 +161,11 @@ fn host_object() -> Result<Vec<u8>, Box<dyn Error>> {
     define_sum_below(&context, &module, &builder)?;
     define_scale(&context, &module, &builder)?;
     define_add_three(&context, &module, &builder, add)?;
-    Ok(emit_object(&module, host()?)?)
+    Ok(emit_object(&module, target)?)
+}
+
+fn host_object() -> Result<Vec<u8>, Box<dyn Error>> {
+    object_for(host()?)
 }
 
 fn loaded_jit(object: &[u8]) -> Result<Jit, Box<dyn Error>> {
@@ -268,5 +282,55 @@ fn one_object_loaded_into_two_jits_is_callable_from_both() -> Result<(), Box<dyn
     let sums = (first_add.call((2, 3)), second_add.call((2, 3)));
 
     assert_eq!(sums, (5, 5));
+    Ok(())
+}
+
+#[test]
+fn bytes_that_are_not_an_object_are_refused_naming_the_object() -> Result<(), Box<dyn Error>> {
+    let mut jit = Jit::new(host()?)?;
+
+    let results = NOT_OBJECTS.map(|(name, bytes)| (name, jit.add_object(name, bytes)));
+
+    let refusals = NOT_OBJECTS.map(|(name, _)| {
+        let refusal = JitError::NotAnObject {
+            name: name.to_string(),
+        };
+        (name, Err::<(), _>(refusal))
+    });
+    assert_eq!(results, refusals);
+    Ok(())
+}
+
+#[test]
+fn an_object_for_the_first_foreign_target_is_refused_naming_the_jit_target()
+-> Result<(), Box<dyn Error>> {
+    let host = host()?;
+    let object = object_for(FOREIGN_TARGETS.0)?;
+    let mut jit = Jit::new(host)?;
+
+    let result = jit.add_object("foreign", &object);
+
+    let refusal = JitError::ObjectTargetMismatch {
+        name: "foreign".to_string(),
+        expected: host,
+    };
+    assert_eq!(result, Err(refusal));
+    Ok(())
+}
+
+#[test]
+fn an_object_for_the_second_foreign_target_is_refused_naming_the_jit_target()
+-> Result<(), Box<dyn Error>> {
+    let host = host()?;
+    let object = object_for(FOREIGN_TARGETS.1)?;
+    let mut jit = Jit::new(host)?;
+
+    let result = jit.add_object("foreign", &object);
+
+    let refusal = JitError::ObjectTargetMismatch {
+        name: "foreign".to_string(),
+        expected: host,
+    };
+    assert_eq!(result, Err(refusal));
     Ok(())
 }
