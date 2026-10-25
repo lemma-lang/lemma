@@ -134,8 +134,9 @@ tested either.
 
 ### Observed ORC behavior
 
-These facts were observed on Apple Silicon and are relied on. The tests that check them are run
-by CI on its three hosts; their observation on Linux is pending.
+These facts were observed on Apple Silicon, unless a fact says otherwise, and are relied on. The
+tests that check them are run by CI on its three hosts; their observation on Linux is pending,
+since the call tests have not yet run there.
 
 - LLJIT applies the target's symbol prefix at lookup: a function is looked up as `add`, not as
   `_add`, on Mach-O as on ELF.
@@ -143,6 +144,12 @@ by CI on its three hosts; their observation on Linux is pending.
   rejected when it is added, not at the first lookup.
 - A call between two functions of one object resolves to the object's own definitions.
 - One object can be loaded into two JITs, and is callable from both.
+- An absolute symbol defined in module-level assembly (`.globl zero` with `.set zero, 0`) ends in
+  a lookup error on both formats, at a different point. On Mach-O, JITLink takes it as a
+  definition, and the lookup reaches its address before the JIT reports it resolved to no
+  address; on ELF (observed in CI on Linux x86-64 and AArch64, LLVM 22 from apt.llvm.org), the
+  link fails with "Missing definitions in module ...: [ zero ]" and the lookup errors before any
+  address.
 - LLVM's execution session writes link errors to the process's standard error, through its default
   error reporter, besides the error the failing operation returns. A command line whose output is
   structured diagnostics will need to install its own reporter (the C API has
