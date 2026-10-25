@@ -50,7 +50,11 @@ A non-regression test starts from a reproduced bug and must first fail the same 
   `expected = "…"`, no `let _ =` that swallows the failure under test.
 - **No redundancy**: one rule, one proof, at the lowest level that carries it (a verifier rule in
   `lemma-verify`, not again through the CLI).
-- Tests may `unwrap()` and `expect()` (`clippy.toml` allows it): it says the setup cannot fail.
+- Tests may `unwrap()` and `expect()`: it says the setup cannot fail. `clippy.toml` allows it in
+  `#[test]` functions and `#[cfg(test)]` items only, so in a sibling `tests.rs` but not in a helper
+  of an integration test under `crates/*/tests/`. Such a helper returns a `Result` that the test
+  propagates with `?` (the test returns `Result<(), Box<dyn std::error::Error>>`), never a lint
+  `allow`. `cargo test` stays green on that mistake; `just lint` is what catches it.
 - No comment in a test body, no ticket key in a test or file name. One line above a non-obvious
   setup is the most a test file needs.
 - Errors are asserted with their location: a diagnostic without its span is half a test.
