@@ -117,8 +117,8 @@ The JIT uses LLVM's default JITLink in-process memory manager. It maps an object
 read-write, copies and relocates the code, then makes them read-execute with `mprotect`: a page is
 never writable and executable at once. It does not use `MAP_JIT`. This is observed working on
 Apple Silicon under macOS 26, in unsigned test binaries. The test suite that exercises it is run by
-CI on its three hosts (macOS 15 on Apple Silicon, Linux x86-64 and Linux AArch64); its Linux
-results have not been observed yet.
+CI on its three hosts (macOS 15 on Apple Silicon, Linux x86-64 and Linux AArch64), where it
+passes.
 
 Under the Hardened Runtime, which a signed and notarized `lemma` release runs under, Apple documents
 that writable-then-executable memory requires `MAP_JIT` and the `com.apple.security.cs.allow-jit`
@@ -135,8 +135,8 @@ tested either.
 ### Observed ORC behavior
 
 These facts were observed on Apple Silicon, unless a fact says otherwise, and are relied on. The
-tests that check them are run by CI on its three hosts; their observation on Linux is pending,
-since the call tests have not yet run there.
+tests that check them run in CI on its three hosts and pass there, Linux x86-64 and Linux AArch64
+included.
 
 - LLJIT applies the target's symbol prefix at lookup: a function is looked up as `add`, not as
   `_add`, on Mach-O as on ELF.
