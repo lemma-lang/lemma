@@ -1,0 +1,3 @@
+fn f(n: u64, k: u64 < n - 1) -> u64 eff pure spec k equiv allow() impl { return k }
+fn g(n: u64) -> u64 <= 2 * n eff pure spec n equiv allow() impl { return n }
+fn z(n: u64, k: u64 <= 15) -> u64 < n eff pure spec k equiv allow() impl { return k }

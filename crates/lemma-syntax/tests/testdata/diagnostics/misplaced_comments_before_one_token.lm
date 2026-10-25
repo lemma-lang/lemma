@@ -1,0 +1,11 @@
+fn f(
+  // first
+  n: u64, // second
+  a: &u64[n] @a8 ro
+) -> u64
+  eff pure
+  spec n
+  equiv allow()
+  impl {
+    return n
+  }

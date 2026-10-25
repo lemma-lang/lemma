@@ -1,0 +1,12 @@
+fn g(n: u64) -> u64 eff pure spec n equiv allow() impl { let x: u64 < n = 0 return x }
+fn h(n: u64) -> u64
+  eff pure
+  spec n
+  equiv allow()
+  impl {
+    loop i: u64 in 0..<n step 1 carry(s: u64 < n = 0) {
+      next s = i
+    }
+    return s
+  }
+fn z() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

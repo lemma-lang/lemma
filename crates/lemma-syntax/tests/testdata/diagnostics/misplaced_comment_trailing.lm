@@ -1,0 +1,10 @@
+fn f(n: u64, a: &u64[n] @a8 ro) -> u64 // signature
+  eff pure // effect
+  req n > 0 // why
+  spec n
+  equiv allow()
+  impl {
+    let m: u64 = a[0] // first
+    return m // result
+  }
+fn g() -> u64 eff pure spec 0 equiv allow() impl { return 0 } // last

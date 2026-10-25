@@ -1,0 +1,5 @@
+fn a(c: bool, d: bool) -> bool eff pure spec !c == d equiv allow() impl { return c }
+fn b(c: bool, d: bool) -> bool eff pure spec d == !c equiv allow() impl { return c }
+fn e(c: bool) -> bool eff pure spec !c * 2 equiv allow() impl { return c }
+fn g(c: bool) -> bool eff pure spec -!c equiv allow() impl { return c }
+fn z(c: bool, d: bool) -> bool eff pure spec !c && d || (!c) == d equiv allow() impl { return !(c == d) }

@@ -1,0 +1,19 @@
+fn f(
+  // parameters
+  n: u64
+) -> u64
+  eff pure
+  spec n +
+    // inside
+    1
+  equiv allow()
+  impl
+  // body
+  {
+    loop i: u64 in 0..<n step 1 carry(
+      s: u64 = 0 // carry
+    ) {
+      next s = s + i
+    }
+    return s
+  }

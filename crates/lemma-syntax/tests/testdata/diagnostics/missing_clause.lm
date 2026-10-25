@@ -1,0 +1,14 @@
+fn f(n: u64) -> u64
+  spec n
+  equiv allow()
+  impl {
+    return n
+  }
+fn g(n: u64) -> u64
+  eff pure
+  equiv allow()
+  impl {
+    return n
+  }
+fn z() -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+fn h() -> u64 eff pure spec 0

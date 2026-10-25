@@ -1,0 +1,7 @@
+fn f(n: u64, m: u64, a: &u8 < m[n] @a1 ro) -> u64
+  eff pure
+  spec n
+  equiv allow()
+  impl {
+    return n
+  }

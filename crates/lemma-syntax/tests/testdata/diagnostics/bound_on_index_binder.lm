@@ -1,0 +1,11 @@
+fn f(n: u64) -> u64
+  eff pure
+  req forall(j: u64 < n in 0..<n) { j < n }
+  spec sum(i: u64 <= n in 0..<n) { i }
+  equiv allow()
+  impl {
+    loop i: u64 < n in 0..<n step 1 carry(s: u64 = 0) {
+      next s = s + i
+    }
+    return s
+  }

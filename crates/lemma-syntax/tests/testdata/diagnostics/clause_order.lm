@@ -1,0 +1,18 @@
+fn f(n: u64) -> u64
+  eff pure
+  spec n
+  equiv allow()
+  impl {
+    return n
+  }
+  req n > 0
+fn g(n: u64) -> u64
+  eff pure
+  ens result > 0
+  req n > 0
+  req n < 9
+  spec n
+  equiv allow()
+  impl {
+    return n
+  }

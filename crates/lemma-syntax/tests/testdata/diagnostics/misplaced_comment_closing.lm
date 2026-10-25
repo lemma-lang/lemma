@@ -1,0 +1,12 @@
+fn f(n: u64) -> u64
+  eff pure
+  spec n
+  equiv allow()
+  impl {
+    loop i: u64 in 0..<n step 1 carry(s: u64 = 0) {
+      next s = s + i
+      // loop end
+    }
+    return s
+    // impl end
+  }

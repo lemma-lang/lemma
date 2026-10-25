@@ -1,0 +1,21 @@
+fn f(n: u64) -> u64
+  eff pure
+  spec n
+  equiv
+  impl {
+    return n
+  }
+fn g(n: u64) -> u64
+  eff pure
+  spec n
+  equiv spec ≈ impl allow()
+  impl {
+    return n
+  }
+fn h(n: u64) -> u64
+  eff pure
+  spec n
+  equiv allow(fp_reassoc, fp_contract, fp_reassoc)
+  impl {
+    return n
+  }

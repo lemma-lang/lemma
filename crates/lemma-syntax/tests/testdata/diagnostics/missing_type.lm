@@ -1,0 +1,7 @@
+fn a(n) -> u64 eff pure spec 0 equiv allow() impl { return 0 }
+fn b() -> u64 eff pure spec 0 equiv allow() impl { let x = 1 return x }
+fn c(n: u64) -> u64 eff pure spec n equiv allow() impl { loop i: u64 in 0..<n step 1 carry(s = 0) { next s = i } return s }
+fn d(n: u64) -> u64 eff pure spec n equiv allow() impl { loop i in 0..<n step 1 carry(s: u64 = 0) { next s = i } return s }
+fn e(n: u64) -> u64 eff pure spec sum(i in 0..<n) { i } equiv allow() impl { return n }
+fn g(n: u64) -> u64 eff pure req forall(i in 0..<n) { i < n } spec n equiv allow() impl { return n }
+fn z() -> u64 eff pure spec 0 equiv allow() impl { return 0 }

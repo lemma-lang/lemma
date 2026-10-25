@@ -1,14 +1,16 @@
 //! The syntax diagnostics of `docs/grammar.md` section 7 as `parse` reports them: kinds, spans and
 //! repairs over the corpus in `testdata/diagnostics/`, the recovery rule (a repaired record
 //! continues the parse, an unrepaired one ends its function and parsing resumes at the next `fn` or
-//! `export`), the nesting limit of section 3, and the R and T renderings of every corpus file.
+//! `export`), the nesting limit of section 3, the place of comments and the structure rules of
+//! clauses, signatures and operands, the consistency of the repairs of a file applied together,
+//! and the R and T renderings of every corpus file.
 
 use std::collections::BTreeSet;
 use std::error::Error;
 use std::io;
 
 use lemma_diagnostics::{Diagnostic, Kind, Source, render_records, render_text};
-use lemma_syntax::{C1Variant, File, dump, parse};
+use lemma_syntax::{C1Variant, File, Parsed, dump, parse};
 
 type ExpectedEdit = (usize, usize, &'static str);
 type ExpectedRecord = (Kind, usize, usize, &'static [ExpectedEdit]);
@@ -25,6 +27,10 @@ type NestingCase = (String, String, NestingOutcome);
 type NestingMismatch = (String, NestingOutcome, NestingOutcome);
 type MessageCase = (&'static str, String, &'static str);
 type MessageMismatch = (&'static str, Vec<String>, &'static str);
+type ParseView = (Vec<RecordView>, String, Vec<String>);
+type ConsistencyMismatch = (&'static str, ParseView, ParseView);
+type PrintableCase = (&'static str, Kind);
+type PrintableReport = (&'static str, Kind, usize, Vec<String>);
 
 const ASCII: C1Variant = C1Variant::Ascii;
 const UNICODE: C1Variant = C1Variant::Unicode;
@@ -191,7 +197,10 @@ const TOKEN_CASES: [CorpusCase; 17] = [
     (
         "clause_foreign_word_out_of_place.lm",
         ASCII,
-        &[(Kind::ForeignKeyword, 33, 40, &[(33, 40, "eff")])],
+        &[
+            (Kind::ForeignKeyword, 33, 40, &[(33, 40, "eff")]),
+            (Kind::DuplicateClause, 33, 40, &[]),
+        ],
     ),
     (
         "zero_width_space_in_assigned_name.lm",
@@ -303,6 +312,347 @@ const NESTING_CORPUS_CASES: [CorpusCase; 2] = [
         &[(Kind::NestingLimit, 54, 55, &[])],
     ),
 ];
+
+const COMMENT_PLACEMENT_CASES: [CorpusCase; 9] = [
+    (
+        "misplaced_comment_trailing.lm",
+        ASCII,
+        &[
+            (
+                Kind::MisplacedComment,
+                39,
+                51,
+                &[(0, 0, "// signature\n"), (38, 51, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                63,
+                72,
+                &[(54, 54, "// effect\n  "), (62, 72, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                85,
+                91,
+                &[(75, 75, "// why\n  "), (84, 91, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                148,
+                156,
+                &[(130, 130, "// first\n    "), (147, 156, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                170,
+                179,
+                &[(161, 161, "// result\n    "), (169, 179, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                246,
+                253,
+                &[(228, 228, "\n// last\n"), (245, 253, "")],
+            ),
+        ],
+    ),
+    (
+        "misplaced_comment_inside.lm",
+        ASCII,
+        &[
+            (
+                Kind::MisplacedComment,
+                8,
+                21,
+                &[(0, 0, "// parameters\n"), (6, 22, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                66,
+                75,
+                &[(53, 53, "// inside\n  "), (62, 76, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                107,
+                114,
+                &[(100, 100, "// body\n  "), (105, 115, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                175,
+                183,
+                &[(123, 123, "// carry\n    "), (174, 183, "")],
+            ),
+        ],
+    ),
+    (
+        "misplaced_comment_closing.lm",
+        ASCII,
+        &[
+            (
+                Kind::MisplacedComment,
+                144,
+                155,
+                &[(123, 123, "// loop end\n      "), (138, 156, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                179,
+                190,
+                &[(166, 166, "// impl end\n    "), (175, 191, "")],
+            ),
+        ],
+    ),
+    (
+        "misplaced_comment_after_last_item.lm",
+        ASCII,
+        &[(
+            Kind::MisplacedComment,
+            82,
+            93,
+            &[(58, 58, "// file end\n  "), (82, 94, "")],
+        )],
+    ),
+    (
+        "misplaced_comments_before_one_token.lm",
+        ASCII,
+        &[
+            (
+                Kind::MisplacedComment,
+                8,
+                16,
+                &[(0, 0, "// first\n"), (6, 17, "")],
+            ),
+            (
+                Kind::MisplacedComment,
+                27,
+                36,
+                &[(0, 0, "// second\n"), (26, 36, "")],
+            ),
+        ],
+    ),
+    (
+        "misplaced_marked_comments.lm",
+        ASCII,
+        &[
+            (Kind::HashComment, 6, 7, &[(0, 0, "// caf\n"), (6, 14, "")]),
+            (
+                Kind::CommentCharacter,
+                57,
+                59,
+                &[(45, 45, "// nave\n  "), (51, 61, "")],
+            ),
+        ],
+    ),
+    (
+        "comments_only.lm",
+        ASCII,
+        &[
+            (Kind::MisplacedComment, 0, 6, &[]),
+            (Kind::MisplacedComment, 7, 13, &[]),
+        ],
+    ),
+    (
+        "misplaced_comment_skipped.lm",
+        ASCII,
+        &[(Kind::InvalidCharacter, 36, 37, &[])],
+    ),
+    (
+        "comment_before_foreign_keyword.lm",
+        ASCII,
+        &[(Kind::ForeignKeyword, 51, 59, &[(51, 59, "req")])],
+    ),
+];
+
+const CLAUSE_CASES: [CorpusCase; 5] = [
+    (
+        "clause_order.lm",
+        ASCII,
+        &[
+            (
+                Kind::ClauseOrder,
+                33,
+                37,
+                &[(
+                    33,
+                    93,
+                    "req n > 0\n  spec n\n  equiv allow()\n  impl {\n    return n\n  }",
+                )],
+            ),
+            (
+                Kind::ClauseOrder,
+                127,
+                130,
+                &[(
+                    127,
+                    216,
+                    concat!(
+                        "req n > 0\n  req n < 9\n  ens result > 0\n  spec n\n",
+                        "  equiv allow()\n  impl {\n    return n\n  }",
+                    ),
+                )],
+            ),
+        ],
+    ),
+    (
+        "missing_clause.lm",
+        ASCII,
+        &[
+            (Kind::MissingClause, 19, 19, &[]),
+            (Kind::MissingClause, 101, 101, &[]),
+            (Kind::MissingClause, 235, 235, &[]),
+        ],
+    ),
+    (
+        "duplicate_clause.lm",
+        ASCII,
+        &[
+            (Kind::DuplicateClause, 42, 46, &[]),
+            (Kind::DuplicateClause, 149, 154, &[]),
+            (Kind::DuplicateClause, 261, 265, &[]),
+        ],
+    ),
+    (
+        "equiv_clause.lm",
+        ASCII,
+        &[
+            (Kind::EquivWithoutAllow, 47, 47, &[(47, 47, " allow()")]),
+            (Kind::EquivRelation, 122, 135, &[(122, 136, "")]),
+            (Kind::DuplicatePermission, 249, 259, &[(247, 259, "")]),
+        ],
+    ),
+    (
+        "eff_clause.lm",
+        ASCII,
+        &[
+            (Kind::DuplicateEffect, 32, 36, &[(30, 36, "")]),
+            (Kind::TrailingComma, 118, 119, &[(118, 119, "")]),
+        ],
+    ),
+];
+
+const SIGNATURE_CASES: [CorpusCase; 7] = [
+    (
+        "bound_operator.lm",
+        ASCII,
+        &[
+            (Kind::BoundOperator, 12, 13, &[]),
+            (Kind::BoundOperator, 92, 94, &[]),
+            (Kind::BoundOperator, 165, 167, &[]),
+        ],
+    ),
+    (
+        "bound_expression.lm",
+        ASCII,
+        &[
+            (Kind::BoundExpression, 22, 27, &[]),
+            (Kind::BoundExpression, 107, 112, &[]),
+        ],
+    ),
+    (
+        "bound_on_index_binder.lm",
+        ASCII,
+        &[
+            (Kind::BoundOnBinder, 51, 54, &[(50, 54, "")]),
+            (Kind::BoundOnBinder, 93, 97, &[(92, 97, "")]),
+            (Kind::BoundOnBinder, 155, 158, &[(154, 158, "")]),
+        ],
+    ),
+    (
+        "bound_on_binder.lm",
+        ASCII,
+        &[
+            (Kind::BoundOnBinder, 68, 71, &[]),
+            (Kind::BoundOnBinder, 197, 200, &[]),
+        ],
+    ),
+    (
+        "element_bound.lm",
+        ASCII,
+        &[(
+            Kind::UnparenthesizedElementBound,
+            25,
+            31,
+            &[(25, 25, "("), (31, 31, ")")],
+        )],
+    ),
+    (
+        "reference_type.lm",
+        ASCII,
+        &[
+            (Kind::MissingAlignment, 23, 23, &[]),
+            (Kind::MissingMode, 110, 110, &[]),
+        ],
+    ),
+    (
+        "missing_type.lm",
+        ASCII,
+        &[
+            (Kind::MissingType, 6, 6, &[]),
+            (Kind::MissingType, 119, 119, &[]),
+            (Kind::MissingType, 227, 227, &[]),
+            (Kind::MissingType, 322, 322, &[]),
+            (Kind::MissingType, 422, 422, &[]),
+            (Kind::MissingType, 512, 512, &[]),
+        ],
+    ),
+];
+
+const OPERAND_CASES: [CorpusCase; 2] = [
+    (
+        "chained_comparison.lm",
+        ASCII,
+        &[
+            (Kind::ChainedComparison, 39, 40, &[]),
+            (Kind::ChainedComparison, 121, 123, &[]),
+        ],
+    ),
+    (
+        "ambiguous_not.lm",
+        ASCII,
+        &[
+            (Kind::AmbiguousNot, 45, 47, &[]),
+            (Kind::AmbiguousNot, 135, 137, &[]),
+            (Kind::AmbiguousNot, 206, 208, &[]),
+            (Kind::AmbiguousNot, 282, 284, &[]),
+        ],
+    ),
+];
+
+const STRUCTURE_ITEM_CASES: [ItemCase; 12] = [
+    ("clause_foreign_word_out_of_place.lm", ASCII, &["fn g"]),
+    ("comments_only.lm", ASCII, &[]),
+    ("misplaced_comment_skipped.lm", ASCII, &["fn g"]),
+    ("missing_clause.lm", ASCII, &["fn z"]),
+    ("duplicate_clause.lm", ASCII, &["fn z"]),
+    ("bound_operator.lm", ASCII, &["fn z"]),
+    ("bound_expression.lm", ASCII, &["fn z"]),
+    ("bound_on_binder.lm", ASCII, &["fn z"]),
+    ("reference_type.lm", ASCII, &["fn z"]),
+    ("missing_type.lm", ASCII, &["fn z"]),
+    ("chained_comparison.lm", ASCII, &["fn z"]),
+    ("ambiguous_not.lm", ASCII, &["fn z"]),
+];
+
+const ONE_ROUND_FILE: &str = "misplaced_comment_trailing.lm";
+
+const MISSING_CLAUSE_NAMES: [&[&str]; 3] = [&["eff"], &["spec"], &["equiv", "impl"]];
+
+const PRINTABLE_MESSAGE_CASES: [PrintableCase; 3] = [
+    ("equiv_clause.lm", Kind::EquivRelation),
+    ("misplaced_marked_comments.lm", Kind::HashComment),
+    ("misplaced_marked_comments.lm", Kind::CommentCharacter),
+];
+
+const ELEMENT_BOUND_IMPL_HEAD: &str = concat!(
+    "fn f(n: u64, m: u64, a: &u8 < m[n] @a1 ro) -> u64\n",
+    "  eff pure\n",
+    "  spec 0\n",
+    "  equiv allow()\n",
+    "  impl {\n",
+    "    return ",
+);
 
 const RECOVERED_ITEM_CASES: [ItemCase; 20] = [
     ("lexical_unrepaired.lm", ASCII, &["fn g"]),
@@ -612,6 +962,10 @@ fn all_corpus_cases() -> Vec<CorpusCase> {
         DELIMITER_CASES.as_slice(),
         RECOVERY_CASES.as_slice(),
         NESTING_CORPUS_CASES.as_slice(),
+        COMMENT_PLACEMENT_CASES.as_slice(),
+        CLAUSE_CASES.as_slice(),
+        SIGNATURE_CASES.as_slice(),
+        OPERAND_CASES.as_slice(),
     ]
     .concat()
 }
@@ -874,6 +1228,146 @@ fn message_mismatches(cases: Vec<MessageCase>) -> Vec<MessageMismatch> {
         .collect()
 }
 
+/// `text` with the edits of every record applied: sorted by start then end byte, insertions at
+/// one position in record order (`docs/diagnostics.md`, section 3), applied from the last.
+fn repaired_text(text: &[u8], records: &[Diagnostic]) -> Result<Vec<u8>, String> {
+    let mut edits: Vec<EditView> = records
+        .iter()
+        .flat_map(|record| record_view(record).3)
+        .collect();
+    edits.sort_by_key(|&(start, end, _)| (start, end));
+    let overlapping = edits
+        .windows(2)
+        .any(|pair| matches!(pair, [first, second] if first.1 > second.0));
+    if overlapping {
+        return Err(format!("the edits overlap: {edits:?}"));
+    }
+    let mut repaired = text.to_vec();
+    for (start, end, replacement) in edits.into_iter().rev() {
+        repaired
+            .get(start..end)
+            .ok_or_else(|| format!("the edit {start}..{end} is outside the text"))?;
+        repaired.splice(start..end, replacement.into_bytes());
+    }
+    Ok(repaired)
+}
+
+fn comment_texts(parsed: Parsed) -> Vec<String> {
+    parsed
+        .comments
+        .into_iter()
+        .map(|comment| comment.text)
+        .collect()
+}
+
+fn parse_view(file: &str, text: &[u8], variant: C1Variant) -> ParseView {
+    let parsed = parse(source(file, text), variant);
+    let records = parsed.diagnostics.iter().map(record_view).collect();
+    let dumped = dump(&parsed.file);
+    (records, dumped, comment_texts(parsed))
+}
+
+/// The files whose records all carry a repair and whose repaired text does not parse clean to
+/// the recovered AST with the comments in source order.
+fn consistency_mismatches(
+    cases: &[CorpusCase],
+) -> Result<Vec<ConsistencyMismatch>, Box<dyn Error>> {
+    let mut mismatches = Vec::new();
+    for &(file, variant, _) in cases {
+        let text = corpus_text(file)?;
+        let parsed = parse(source(file, &text), variant);
+        let records = parsed.diagnostics.clone();
+        if records.iter().any(|record| record.repair.is_empty()) {
+            continue;
+        }
+        let actual = parse_view(file, &repaired_text(&text, &records)?, variant);
+        let expected = (Vec::new(), dump(&parsed.file), comment_texts(parsed));
+        mismatches.extend((actual != expected).then_some((file, actual, expected)));
+    }
+    Ok(mismatches)
+}
+
+/// The number of records with a repair in the file, and the records of its repaired text.
+fn one_round(file: &str) -> Result<(usize, Vec<RecordView>), Box<dyn Error>> {
+    let text = corpus_text(file)?;
+    let records = parse(source(file, &text), ASCII).diagnostics;
+    let repaired = repaired_text(&text, &records)?;
+    let remaining = parse(source(file, &repaired), ASCII)
+        .diagnostics
+        .iter()
+        .map(record_view)
+        .collect();
+    let with_repair = records
+        .iter()
+        .filter(|record| !record.repair.is_empty())
+        .count();
+    Ok((with_repair, remaining))
+}
+
+/// For each message, the clause keywords of its expected list that it names in backticks.
+fn named_clauses(messages: &[String], expected: &[&[&'static str]]) -> Vec<Vec<&'static str>> {
+    messages
+        .iter()
+        .zip(expected)
+        .map(|(message, names)| {
+            names
+                .iter()
+                .copied()
+                .filter(|name| message.contains(&format!("`{name}`")))
+                .collect()
+        })
+        .collect()
+}
+
+fn kind_messages(file: &str, kind: Kind) -> Result<Vec<String>, io::Error> {
+    Ok(corpus_records(file, ASCII)?
+        .into_iter()
+        .filter(|record| record.kind == kind)
+        .map(|record| record.message)
+        .collect())
+}
+
+fn printable_reports(cases: &[PrintableCase]) -> Result<Vec<PrintableReport>, io::Error> {
+    cases
+        .iter()
+        .map(|&(file, kind)| {
+            let count = kind_messages(file, kind)?.len();
+            Ok((file, kind, count, unprintable_messages(file, ASCII, kind)?))
+        })
+        .collect()
+}
+
+fn one_printable_message_each(cases: &[PrintableCase]) -> Vec<PrintableReport> {
+    cases
+        .iter()
+        .map(|&(file, kind)| (file, kind, 1, Vec::new()))
+        .collect()
+}
+
+fn element_bound_nesting_cases() -> Vec<NestingCase> {
+    let bound = (Kind::UnparenthesizedElementBound, 25, 31);
+    let opener = opener_offset(&PARENTHESIS, ELEMENT_BOUND_IMPL_HEAD.len(), 16);
+    let limit = (Kind::NestingLimit, opener, opener + 1);
+    vec![
+        (
+            "15 parentheses in impl after the repaired bound".to_string(),
+            format!(
+                "{ELEMENT_BOUND_IMPL_HEAD}{}{IMPL_TAIL}",
+                nested(&PARENTHESIS, 15)
+            ),
+            (vec![bound], 1),
+        ),
+        (
+            "16 parentheses in impl after the repaired bound".to_string(),
+            format!(
+                "{ELEMENT_BOUND_IMPL_HEAD}{}{IMPL_TAIL}",
+                nested(&PARENTHESIS, 16)
+            ),
+            (vec![bound, limit], 0),
+        ),
+    ]
+}
+
 #[test]
 fn lexical_faults_are_reported_through_the_parse() -> Result<(), Box<dyn Error>> {
     let cases = LEXICAL_CASES;
@@ -1024,4 +1518,107 @@ fn each_corpus_file_renders_as_its_snapshot() -> Result<(), Box<dyn Error>> {
     assert_snapshots(&cases)?;
 
     Ok(())
+}
+
+#[test]
+fn a_misplaced_comment_moves_above_the_innermost_construct_before_it() -> Result<(), Box<dyn Error>>
+{
+    let cases = COMMENT_PLACEMENT_CASES;
+
+    let mismatches = corpus_mismatches(&cases)?;
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    Ok(())
+}
+
+#[test]
+fn clause_structure_kinds_are_reported_with_their_repairs() -> Result<(), Box<dyn Error>> {
+    let cases = CLAUSE_CASES;
+
+    let mismatches = corpus_mismatches(&cases)?;
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    Ok(())
+}
+
+#[test]
+fn signature_and_binder_kinds_are_reported_with_their_repairs() -> Result<(), Box<dyn Error>> {
+    let cases = SIGNATURE_CASES;
+
+    let mismatches = corpus_mismatches(&cases)?;
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    Ok(())
+}
+
+#[test]
+fn chained_comparisons_and_ambiguous_nots_are_reported_at_the_operand() -> Result<(), Box<dyn Error>>
+{
+    let cases = OPERAND_CASES;
+
+    let mismatches = corpus_mismatches(&cases)?;
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    Ok(())
+}
+
+#[test]
+fn an_unrepaired_structure_record_ends_its_function_and_the_next_one_parses()
+-> Result<(), Box<dyn Error>> {
+    let cases = STRUCTURE_ITEM_CASES;
+
+    let mismatches = item_mismatches(&cases)?;
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    Ok(())
+}
+
+#[test]
+fn every_misplaced_comment_of_a_file_is_repaired_in_one_round() -> Result<(), Box<dyn Error>> {
+    let file = ONE_ROUND_FILE;
+
+    let outcome = one_round(file)?;
+
+    assert_eq!(outcome, (6, Vec::new()));
+    Ok(())
+}
+
+#[test]
+fn the_repairs_of_a_file_applied_together_give_a_clean_text_with_the_recovered_ast()
+-> Result<(), Box<dyn Error>> {
+    let cases = all_corpus_cases();
+
+    let mismatches = consistency_mismatches(&cases)?;
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    Ok(())
+}
+
+#[test]
+fn a_missing_clause_message_names_every_missing_clause() -> Result<(), Box<dyn Error>> {
+    let messages = kind_messages("missing_clause.lm", Kind::MissingClause)?;
+
+    let named = named_clauses(&messages, &MISSING_CLAUSE_NAMES);
+
+    assert_eq!(named, MISSING_CLAUSE_NAMES.map(<[&str]>::to_vec));
+    Ok(())
+}
+
+#[test]
+fn a_structure_message_about_non_ascii_text_stays_printable_ascii() -> Result<(), Box<dyn Error>> {
+    let cases = PRINTABLE_MESSAGE_CASES;
+
+    let reports = printable_reports(&cases)?;
+
+    assert_eq!(reports, one_printable_message_each(&cases));
+    Ok(())
+}
+
+#[test]
+fn the_parenthesis_an_element_bound_repair_inserts_keeps_the_depth_count() {
+    let cases = element_bound_nesting_cases();
+
+    let mismatches = nesting_mismatches(cases);
+
+    assert!(mismatches.is_empty(), "{mismatches:#?}");
 }
