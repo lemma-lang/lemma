@@ -9,6 +9,11 @@ updates:
     commit-message:
       prefix: build
       include: scope
+    # The major number of llvm-sys is the LLVM version (221 is LLVM 22.1): a new
+    # LLVM moves together with inkwell, the CI image and .cargo/config.toml.
+    ignore:
+      - dependency-name: llvm-sys
+        versions: [">= 222"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
