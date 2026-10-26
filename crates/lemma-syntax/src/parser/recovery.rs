@@ -206,20 +206,48 @@ impl Parser<'_> {
         self.stop_record_of(Kind::UnmatchedDelimiter, message, range)
     }
 
+    /// Ends the function at the current token, which opens a level past the limit.
+    fn nesting_limit(&mut self) -> Abort {
+        let range = self.current().range;
+        let advice = if self.in_impl {
+            IMPL_NESTING_ADVICE
+        } else {
+            ""
+        };
+        let message = format!("nesting exceeds the limit of {NESTING_LIMIT} levels{advice}");
+        self.stop(Kind::NestingLimit, message, range)
+    }
+
     /// Opens `level` at the current token and consumes it; the token opening a level past the
     /// limit is a `nesting-limit` record, checked before anything inside the level is read.
     fn enter(&mut self, level: Level) -> ParseResult<TextRange> {
-        let range = self.current().range;
         if self.nesting.open(level).is_err() {
-            let advice = if self.in_impl {
-                IMPL_NESTING_ADVICE
-            } else {
-                ""
-            };
-            let message = format!("nesting exceeds the limit of {NESTING_LIMIT} levels{advice}");
-            return Err(self.stop(Kind::NestingLimit, message, range));
+            return Err(self.nesting_limit());
         }
         self.bump()
+    }
+
+    /// Opens the level of the `(` that a repair inserts before the current token, which counts as
+    /// if it were written there.
+    pub(super) fn enter_inserted(&mut self, delimiter: Delimiter) -> ParseResult<()> {
+        if self.nesting.open(Level::Delimiter(delimiter)).is_err() {
+            return Err(self.nesting_limit());
+        }
+        Ok(())
+    }
+
+    /// Closes the level `enter_inserted` opened.
+    pub(super) fn leave_inserted(&mut self, delimiter: Delimiter) -> ParseResult<()> {
+        self.leave(Level::Delimiter(delimiter))
+    }
+
+    /// Ends the function with `kind`, reported on the empty span right after the last token read.
+    pub(super) fn stop_after_previous(&mut self, kind: Kind, message: String) -> Abort {
+        let range = TextRange {
+            start: self.previous_end,
+            end: self.previous_end,
+        };
+        self.stop(kind, message, range)
     }
 
     /// Closes the innermost level, which must be `expected`; any other level is a parser bug,
@@ -339,9 +367,12 @@ impl Parser<'_> {
     }
 
     /// Skips to the next `fn` or `export` after the item that began at token `start`, or to the
-    /// end of input; the token the function stopped at is kept when it is one of them.
+    /// end of input; the token the function stopped at is kept when it is one of them. The
+    /// comments of the skipped region are not judged.
     pub(super) fn resynchronize(&mut self, start: usize) {
         self.nesting.clear();
+        self.constructs.clear();
+        let stopped_at = self.position;
         let last = self.tokens.len().saturating_sub(1);
         let mut position = self.position.max(start + 1).min(last);
         while let Some(skipped) = self.tokens.get(position).filter(|token| {
@@ -354,5 +385,9 @@ impl Parser<'_> {
             position += 1;
         }
         self.position = position.min(last);
+        if self.position > stopped_at {
+            self.last_owner = None;
+            self.skip_comments_before(self.current().range.start);
+        }
     }
 }
