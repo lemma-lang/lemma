@@ -13,4 +13,4 @@ lemma-codegen = { path = "../lemma-codegen", version = "0.0.1" }
 llvm-sys = "221"
 
 [dev-dependencies]
-inkwell = { version = "0.10", features = ["llvm22-1"] }
+inkwell = { version = "0.11", features = ["llvm22-1"] }
