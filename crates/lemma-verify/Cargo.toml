@@ -9,4 +9,4 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-z3 = "0.21"
+z3 = "0.22"
